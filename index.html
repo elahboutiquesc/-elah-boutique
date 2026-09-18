@@ -45,3 +45,4 @@ renderProducts=function(){oldRenderProducts();document.querySelectorAll('#produc
 const oldAdd=add;
 add=function(id){const x=data.find(v=>v.id===id);if(!x||x.stock<=0||x.estado==='AGOTADO'||x.estado==='NO DISPONIBLE')return;oldAdd(id)}
 currency(cur);syncInventory();setInterval(syncInventory,5000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncInventory()});window.addEventListener('focus',syncInventory);</script></body></html>
+<!-- deploy-refresh: inventory-live -->
