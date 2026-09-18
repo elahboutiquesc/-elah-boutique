@@ -20,7 +20,25 @@ function renderProducts(){products.innerHTML=data.map(x=>'<article>'+(x.img?'<im
 function currency(m){cur=m;document.body.classList.remove('money-cop','money-usd');document.body.classList.add(m==='cop'?'money-cop':'money-usd');usdBtn.classList.toggle('active',m==='usd');copBtn.classList.toggle('active',m==='cop');localStorage.setItem('elahCurrency',m);renderProducts();draw()}
 function add(id){c.push(data.find(x=>x.id===id));draw();drawer.classList.add('show')}function del(i){c.splice(i,1);draw()}function toggle(){drawer.classList.toggle('show');draw()}
 function draw(){count.textContent=c.length;cart.innerHTML=c.length?c.map((x,i)=>'<p><b>'+x.r+'</b><br>'+x.n+' · Talla '+x.s+' · '+money(x.p,x.cop)+' <button onclick="del('+i+')">Quitar</button></p>').join(''):'Aún no has agregado piezas.';let tUsd=c.reduce((a,x)=>a+Number(x.p||0),0),tCop=c.reduce((a,x)=>a+Number(x.cop||0),0);total.textContent=c.length?'Total: '+money(tUsd,tCop):'';wa.href='https://wa.me/'+PHONE+'?text='+encodeURIComponent('Hola ELAH Boutique, quiero pagar en '+(cur==='cop'?'PESOS COLOMBIANOS':'DÓLARES')+':\n'+c.map(x=>x.r+' - '+x.n+' - Talla '+x.s+' - '+money(x.p,x.cop)).join('\n')+'\nTotal: '+money(tUsd,tCop))}
-currency(cur);</script></body></html>+Number(cop).toLocaleString('es-CO')+' COP':'
+async function syncInventory(){
+ try{
+  const res=await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vSy5SVXv_92qsr51Fb1IhMVgYZ4DVYegUcv6XIsnp9xgCJLZZaA7Yw95LM02WdU5zMN_8u55B8Nrhga/pub?gid=368802770&single=true&output=csv&_='+Date.now(),{cache:'no-store'});
+  if(!res.ok) throw new Error('Inventario no disponible');
+  const txt=await res.text();
+  const rows=txt.trim().split(/\r?\n/).slice(1).map(line=>{
+   const out=[];let s='',q=false;
+   for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(q&&line[i+1]==='"'){s+='"';i++}else q=!q}else if(ch===','&&!q){out.push(s);s=''}else s+=ch}out.push(s);return out;
+  });
+  const inv=new Map(rows.filter(x=>x[0]).map(x=>[x[0].trim(),x]));
+  data.forEach(x=>{const v=inv.get(x.r);if(v){x.n=v[1]||x.n;x.s=v[3]||x.s;x.p=Number(String(v[4]).replace(',','.'))||0;x.cop=Number(String(v[5]).replace(/[^0-9.-]/g,''))||0;x.stock=Number(v[6])||0;x.estado=(v[7]||'').trim().toUpperCase();}});
+  renderProducts();draw();
+ }catch(e){console.error('No se pudo sincronizar inventario',e)}
+}
+const oldRenderProducts=renderProducts;
+renderProducts=function(){oldRenderProducts();document.querySelectorAll('#products article').forEach((el,i)=>{const x=data[i];if(!x)return;const sold=x.stock<=0||x.estado==='AGOTADO'||x.estado==='NO DISPONIBLE';if(sold){el.style.opacity='.55';const b=el.querySelector('.add');if(b){b.disabled=true;b.textContent='AGOTADO';b.style.width='auto';b.style.padding='0 10px'}const info=el.querySelector('.info');if(info&&!info.querySelector('.sold')){const d=document.createElement('div');d.className='sold';d.textContent='AGOTADO';d.style='font-weight:800;color:#8b3f2f;margin-top:4px';info.appendChild(d)}}})}
+const oldAdd=add;
+add=function(id){const x=data.find(v=>v.id===id);if(!x||x.stock<=0||x.estado==='AGOTADO'||x.estado==='NO DISPONIBLE')return;oldAdd(id)}
+currency(cur);syncInventory();setInterval(syncInventory,15000);</script></body></html>+Number(cop).toLocaleString('es-CO')+' COP':'
 function renderProducts(){products.innerHTML=data.map(x=>'<article>'+(x.img?'<img class="productPhoto" src="'+x.img+'" alt="'+x.n+'">':'<div class="pic p'+x.pos+'"></div>')+'<div class="info"><div class="ref">'+x.r+'</div><h3>'+x.n+'</h3><div class="price" style="display:block!important;font-weight:700;font-size:15px;color:#5a382e;margin:5px 0">'+money(x.p,x.cop)+'</div><div style="font-size:10px;margin-top:3px">Talla '+x.s+'</div><button class="add" onclick="add('+x.id+')">🛒</button></div></article>').join('')}
 function currency(m){cur=m;document.body.classList.remove('money-cop','money-usd');document.body.classList.add(m==='cop'?'money-cop':'money-usd');usdBtn.classList.toggle('active',m==='usd');copBtn.classList.toggle('active',m==='cop');localStorage.setItem('elahCurrency',m);renderProducts();draw()}
 function add(id){c.push(data.find(x=>x.id===id));draw();drawer.classList.add('show')}function del(i){c.splice(i,1);draw()}function toggle(){drawer.classList.toggle('show');draw()}
