@@ -22,8 +22,7 @@ function add(id){c.push(data.find(x=>x.id===id));draw();drawer.classList.add('sh
 function draw(){count.textContent=c.length;cart.innerHTML=c.length?c.map((x,i)=>'<p><b>'+x.r+'</b><br>'+x.n+' · Talla '+x.s+' · '+money(x.p,x.cop)+' <button onclick="del('+i+')">Quitar</button></p>').join(''):'Aún no has agregado piezas.';let tUsd=c.reduce((a,x)=>a+Number(x.p||0),0),tCop=c.reduce((a,x)=>a+Number(x.cop||0),0);total.textContent=c.length?'Total: '+money(tUsd,tCop):'';wa.href='https://wa.me/'+PHONE+'?text='+encodeURIComponent('Hola ELAH Boutique, quiero pagar en '+(cur==='cop'?'PESOS COLOMBIANOS':'DÓLARES')+':\n'+c.map(x=>x.r+' - '+x.n+' - Talla '+x.s+' - '+money(x.p,x.cop)).join('\n')+'\nTotal: '+money(tUsd,tCop))}
 async function syncInventory(){
  try{
-  const url='https://script.google.com/macros/s/AKfycbz-AzMiXKRmhFVlhWs3CtowNI_bL1T5Oi0VuQNhxMErgOTaP1uS6Sn42SQwvRmwQVCD/exec?_='+Date.now();
-  const res=await fetch(url,{cache:'no-store',redirect:'follow'});
+  const res=await fetch('/api/inventory?_='+Date.now(),{cache:'no-store'});
   if(!res.ok) throw new Error('Inventario no disponible: '+res.status);
   const payload=await res.json();
   if(!payload.ok||!Array.isArray(payload.productos)) throw new Error('Respuesta inválida');
@@ -31,8 +30,7 @@ async function syncInventory(){
   data.forEach(x=>{
    const v=inv.get(String(x.r||'').trim().toUpperCase());
    if(!v)return;
-   x.n=v.descripcion||x.n;
-   x.s=v.talla||x.s;
+   x.n=v.descripcion||x.n;x.s=v.talla||x.s;
    x.p=Number(v.precioUSD)||0;
    x.cop=Number(v.precioCOP)||0;
    if(x.cop>0&&x.cop<1000)x.cop*=1000;
@@ -40,7 +38,6 @@ async function syncInventory(){
    x.estado=String(v.estado||'').trim().toUpperCase();
   });
   renderProducts();draw();
-  document.documentElement.dataset.inventorySync=String(Date.now());
  }catch(e){console.error('ELAH inventario:',e)}
 }
 const oldRenderProducts=renderProducts;
