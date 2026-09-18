@@ -22,28 +22,29 @@ function add(id){c.push(data.find(x=>x.id===id));draw();drawer.classList.add('sh
 function draw(){count.textContent=c.length;cart.innerHTML=c.length?c.map((x,i)=>'<p><b>'+x.r+'</b><br>'+x.n+' · Talla '+x.s+' · '+money(x.p,x.cop)+' <button onclick="del('+i+')">Quitar</button></p>').join(''):'Aún no has agregado piezas.';let tUsd=c.reduce((a,x)=>a+Number(x.p||0),0),tCop=c.reduce((a,x)=>a+Number(x.cop||0),0);total.textContent=c.length?'Total: '+money(tUsd,tCop):'';wa.href='https://wa.me/'+PHONE+'?text='+encodeURIComponent('Hola ELAH Boutique, quiero pagar en '+(cur==='cop'?'PESOS COLOMBIANOS':'DÓLARES')+':\n'+c.map(x=>x.r+' - '+x.n+' - Talla '+x.s+' - '+money(x.p,x.cop)).join('\n')+'\nTotal: '+money(tUsd,tCop))}
 async function syncInventory(){
  try{
-  const res=await fetch('https://script.google.com/macros/s/AKfycbz-AzMiXKRmhFVlhWs3CtowNI_bL1T5Oi0VuQNhxMErgOTaP1uS6Sn42SQwvRmwQVCD/exec?_='+Date.now(),{cache:'no-store'});
-  if(!res.ok) throw new Error('Inventario no disponible');
+  const url='https://script.google.com/macros/s/AKfycbz-AzMiXKRmhFVlhWs3CtowNI_bL1T5Oi0VuQNhxMErgOTaP1uS6Sn42SQwvRmwQVCD/exec?_='+Date.now();
+  const res=await fetch(url,{cache:'no-store',redirect:'follow'});
+  if(!res.ok) throw new Error('Inventario no disponible: '+res.status);
   const payload=await res.json();
   if(!payload.ok||!Array.isArray(payload.productos)) throw new Error('Respuesta inválida');
-  const inv=new Map(payload.productos.map(v=>[String(v.referencia||'').trim(),v]));
+  const inv=new Map(payload.productos.map(v=>[String(v.referencia||'').trim().toUpperCase(),v]));
   data.forEach(x=>{
-   const v=inv.get(x.r);
-   if(v){
-    x.n=v.descripcion||x.n;
-    x.s=v.talla||x.s;
-    x.p=Number(v.precioUSD)||0;
-    x.cop=Number(v.precioCOP)||0;
-    if(x.cop>0&&x.cop<1000)x.cop*=1000;
-    x.stock=Number(v.stock)||0;
-    x.estado=String(v.estado||'').trim().toUpperCase();
-   }
+   const v=inv.get(String(x.r||'').trim().toUpperCase());
+   if(!v)return;
+   x.n=v.descripcion||x.n;
+   x.s=v.talla||x.s;
+   x.p=Number(v.precioUSD)||0;
+   x.cop=Number(v.precioCOP)||0;
+   if(x.cop>0&&x.cop<1000)x.cop*=1000;
+   x.stock=Number(v.stock)||0;
+   x.estado=String(v.estado||'').trim().toUpperCase();
   });
   renderProducts();draw();
- }catch(e){console.error('No se pudo sincronizar inventario',e)}
+  document.documentElement.dataset.inventorySync=String(Date.now());
+ }catch(e){console.error('ELAH inventario:',e)}
 }
 const oldRenderProducts=renderProducts;
 renderProducts=function(){oldRenderProducts();document.querySelectorAll('#products article').forEach((el,i)=>{const x=data[i];if(!x)return;const sold=x.stock<=0||x.estado==='AGOTADO'||x.estado==='NO DISPONIBLE';if(sold){el.style.opacity='.55';const b=el.querySelector('.add');if(b){b.disabled=true;b.textContent='AGOTADO';b.style.width='auto';b.style.padding='0 10px'}const info=el.querySelector('.info');if(info&&!info.querySelector('.sold')){const d=document.createElement('div');d.className='sold';d.textContent='AGOTADO';d.style='font-weight:800;color:#8b3f2f;margin-top:4px';info.appendChild(d)}}})}
 const oldAdd=add;
 add=function(id){const x=data.find(v=>v.id===id);if(!x||x.stock<=0||x.estado==='AGOTADO'||x.estado==='NO DISPONIBLE')return;oldAdd(id)}
-currency(cur);syncInventory();setInterval(syncInventory,15000);</script></body></html>
+currency(cur);syncInventory();setInterval(syncInventory,5000);document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncInventory()});window.addEventListener('focus',syncInventory);</script></body></html>
