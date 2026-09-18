@@ -22,15 +22,22 @@ function add(id){c.push(data.find(x=>x.id===id));draw();drawer.classList.add('sh
 function draw(){count.textContent=c.length;cart.innerHTML=c.length?c.map((x,i)=>'<p><b>'+x.r+'</b><br>'+x.n+' · Talla '+x.s+' · '+money(x.p,x.cop)+' <button onclick="del('+i+')">Quitar</button></p>').join(''):'Aún no has agregado piezas.';let tUsd=c.reduce((a,x)=>a+Number(x.p||0),0),tCop=c.reduce((a,x)=>a+Number(x.cop||0),0);total.textContent=c.length?'Total: '+money(tUsd,tCop):'';wa.href='https://wa.me/'+PHONE+'?text='+encodeURIComponent('Hola ELAH Boutique, quiero pagar en '+(cur==='cop'?'PESOS COLOMBIANOS':'DÓLARES')+':\n'+c.map(x=>x.r+' - '+x.n+' - Talla '+x.s+' - '+money(x.p,x.cop)).join('\n')+'\nTotal: '+money(tUsd,tCop))}
 async function syncInventory(){
  try{
-  const res=await fetch('https://docs.google.com/spreadsheets/d/e/2PACX-1vSy5SVXv_92qsr51Fb1IhMVgYZ4DVYegUcv6XIsnp9xgCJLZZaA7Yw95LM02WdU5zMN_8u55B8Nrhga/pub?gid=368802770&single=true&output=csv&_='+Date.now(),{cache:'no-store'});
+  const res=await fetch('https://script.google.com/macros/s/AKfycbz-AzMiXKRmhFVlhWs3CtowNI_bL1T5Oi0VuQNhxMErgOTaP1uS6Sn42SQwvRmwQVCD/exec?_='+Date.now(),{cache:'no-store'});
   if(!res.ok) throw new Error('Inventario no disponible');
-  const txt=await res.text();
-  const rows=txt.trim().split(/\r?\n/).slice(1).map(line=>{
-   const out=[];let s='',q=false;
-   for(let i=0;i<line.length;i++){const ch=line[i];if(ch==='"'){if(q&&line[i+1]==='"'){s+='"';i++}else q=!q}else if(ch===','&&!q){out.push(s);s=''}else s+=ch}out.push(s);return out;
+  const payload=await res.json();
+  if(!payload.ok||!Array.isArray(payload.productos)) throw new Error('Respuesta inválida');
+  const inv=new Map(payload.productos.map(v=>[String(v.referencia||'').trim(),v]));
+  data.forEach(x=>{
+   const v=inv.get(x.r);
+   if(v){
+    x.n=v.descripcion||x.n;
+    x.s=v.talla||x.s;
+    x.p=Number(v.precioUSD)||0;
+    x.cop=Number(v.precioCOP)||0;
+    x.stock=Number(v.stock)||0;
+    x.estado=String(v.estado||'').trim().toUpperCase();
+   }
   });
-  const inv=new Map(rows.filter(x=>x[0]).map(x=>[x[0].trim(),x]));
-  data.forEach(x=>{const v=inv.get(x.r);if(v){x.n=v[1]||x.n;x.s=v[3]||x.s;x.p=Number(String(v[4]).replace(',','.'))||0;x.cop=Number(String(v[5]).replace(/[^0-9.-]/g,''))||0;x.stock=Number(v[6])||0;x.estado=(v[7]||'').trim().toUpperCase();}});
   renderProducts();draw();
  }catch(e){console.error('No se pudo sincronizar inventario',e)}
 }
