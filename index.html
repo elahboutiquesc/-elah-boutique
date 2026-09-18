@@ -34,6 +34,7 @@ async function syncInventory(){
     x.s=v.talla||x.s;
     x.p=Number(v.precioUSD)||0;
     x.cop=Number(v.precioCOP)||0;
+    if(x.cop>0&&x.cop<1000)x.cop*=1000;
     x.stock=Number(v.stock)||0;
     x.estado=String(v.estado||'').trim().toUpperCase();
    }
