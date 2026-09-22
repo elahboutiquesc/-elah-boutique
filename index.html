@@ -81,6 +81,20 @@
 .products .info{position:relative;min-height:88px;padding:9px 4px 48px}
 .products .add{float:none!important;position:absolute!important;right:5px!important;bottom:5px!important;margin:0!important;width:40px!important;height:40px!important;border-radius:50%!important;display:flex!important;align-items:center!important;justify-content:center!important;font-size:18px!important;line-height:1!important;z-index:5!important;box-shadow:0 3px 10px rgba(60,35,28,.18)!important;background:var(--terra)!important;color:#fff!important}
 @media(max-width:700px){.products article{padding-bottom:48px}.products .info{padding-bottom:46px}.products .add{width:38px!important;height:38px!important;right:4px!important;bottom:4px!important}}
+
+/* Carrito ELAH: alto contraste con paleta de marca */
+.products .add{
+ background:#5A3E36!important;
+ color:#F7EFEA!important;
+ border:2px solid #C96A4A!important;
+ box-shadow:0 4px 12px rgba(46,46,46,.22)!important;
+ font-size:0!important;
+ width:42px!important;height:42px!important;
+}
+.products .add::before{content:'🛒';font-size:19px;filter:brightness(0) invert(1)}
+.products .add:hover,.products .add:active{background:#C96A4A!important;border-color:#5A3E36!important;transform:scale(1.04)}
+.products .add:disabled{background:#2E2E2E!important;color:#F7EFEA!important;border-color:#5A3E36!important;opacity:.65!important;font-size:10px!important;width:auto!important;min-width:76px!important;padding:0 10px!important;border-radius:20px!important}
+.products .add:disabled::before{content:''}
 </style></head><body class="money-cop">
 <a class="waFloat" href="https://wa.me/584247661554" target="_blank" rel="noopener" aria-label="WhatsApp"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16.04 3C8.86 3 3.02 8.79 3.02 15.91c0 2.27.6 4.49 1.74 6.43L3 28.77l6.62-1.72a13.1 13.1 0 0 0 6.42 1.64h.01c7.17 0 13.01-5.79 13.01-12.91C29.06 8.79 23.22 3 16.04 3zm0 23.51h-.01a10.9 10.9 0 0 1-5.55-1.51l-.4-.24-3.93 1.02 1.05-3.8-.26-.39a10.67 10.67 0 0 1-1.7-5.78c0-5.94 4.86-10.77 10.82-10.77 5.96 0 10.81 4.83 10.81 10.77 0 5.94-4.85 10.7-10.83 10.7zm5.93-8.06c-.32-.16-1.92-.94-2.22-1.05-.3-.11-.52-.16-.74.16-.22.32-.85 1.05-1.04 1.27-.19.21-.38.24-.71.08-.32-.16-1.37-.5-2.61-1.6-.96-.85-1.61-1.91-1.8-2.23-.19-.32-.02-.5.14-.66.15-.14.32-.37.49-.56.16-.19.22-.32.32-.53.11-.21.05-.4-.03-.56-.08-.16-.74-1.77-1.01-2.42-.27-.64-.54-.55-.74-.56h-.63c-.22 0-.57.08-.87.4-.3.32-1.14 1.11-1.14 2.7s1.17 3.13 1.33 3.35c.16.21 2.3 3.49 5.57 4.89.78.33 1.38.53 1.85.68.78.24 1.49.21 2.05.13.63-.09 1.92-.78 2.19-1.53.27-.75.27-1.4.19-1.53-.08-.13-.3-.21-.62-.37z"/></svg></a>
 <div class="top"><span class="topText"><span class="gift">🎁</span> CREA TU CUENTA Y RECIBE <b>10% DE DESCUENTO</b> EN TU PRIMERA COMPRA</span><span class="socialtop"><a href="https://www.instagram.com/elahboutique.sc/" target="_blank" rel="noopener" aria-label="Instagram">◎</a><a href="https://www.tiktok.com/@elahboutique.sc?_r=1&_t=ZS-99ptB9U0QZp" target="_blank" rel="noopener" aria-label="TikTok">♪</a><a href="https://wa.me/584247661554" target="_blank" rel="noopener" aria-label="WhatsApp">◉</a></span></div>
