@@ -131,7 +131,7 @@ async function syncInventory(){
    x.estado=String(v.estado||'').trim().toUpperCase();
   });
   if(categoryConfig(activeCategory))showCategory(activeCategory,false);else renderProducts();draw();
- }catch(e){console.error('ELAH inventario:',e)} finally {requestAnimationFrame(()=>window.scrollTo(0,keepY))}
+ }catch(e){console.error('ELAH inventario:',e)}
 }
 function openProfile(){authModal.classList.add('show');refreshAuthUI()}function closeProfile(){authModal.classList.remove('show')}function authMode(m){authModeNow=m;registerFields.style.display=m==='register'?'block':'none';authMsg.textContent=''}
 async function authPost(body){const r=await fetch(AUTH_API,{method:'POST',headers:{'Content-Type':'text/plain'},body:JSON.stringify(body)});return r.json()}
