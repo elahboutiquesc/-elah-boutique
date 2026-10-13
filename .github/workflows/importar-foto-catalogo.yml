@@ -1,0 +1,63 @@
+name: Importar fotografía al catálogo
+on:
+  workflow_dispatch:
+    inputs:
+      referencia:
+        description: 'Referencia, por ejemplo ELAH-AC034'
+        required: true
+        type: string
+      url_imagen:
+        description: 'URL HTTPS pública de la imagen original'
+        required: true
+        type: string
+permissions:
+  contents: write
+jobs:
+  importar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar referencia y descargar imagen
+        env:
+          REF: ${{ inputs.referencia }}
+          URL_IMAGEN: ${{ inputs.url_imagen }}
+        run: |
+          python3 - <<'PY'
+          import os,re,urllib.parse,urllib.request,subprocess
+          from pathlib import Path
+          ref=os.environ["REF"].strip().upper()
+          url=os.environ["URL_IMAGEN"].strip()
+          if not re.fullmatch(r"ELAH-[A-Z]{2,5}[0-9]{3,5}",ref): raise SystemExit("Referencia no válida")
+          parsed=urllib.parse.urlparse(url)
+          if parsed.scheme!="https" or not parsed.hostname: raise SystemExit("Se requiere URL HTTPS pública")
+          req=urllib.request.Request(url,headers={"User-Agent":"ELAH-Catalog-Importer/1.0"})
+          with urllib.request.urlopen(req,timeout=30) as resp:
+              if not resp.headers.get("Content-Type","").lower().startswith("image/"): raise SystemExit("El enlace no contiene una imagen")
+              data=resp.read(12_000_001)
+          if len(data)>12_000_000: raise SystemExit("Imagen mayor de 12 MB")
+          Path("imagenes").mkdir(exist_ok=True)
+          original=Path("/tmp/elah-original")
+          original.write_bytes(data)
+          subprocess.run(["python3","-m","pip","-q","install","Pillow"],check=True)
+          from PIL import Image,ImageOps
+          from io import BytesIO
+          im=ImageOps.exif_transpose(Image.open(BytesIO(data))).convert("RGB")
+          im.thumbnail((1600,2400),Image.Resampling.LANCZOS)
+          dest=Path("imagenes")/(ref.lower()+".jpg")
+          im.save(dest,format="JPEG",quality=86,optimize=True,progressive=True)
+          html=Path("index.html")
+          text=html.read_text(encoding="utf-8")
+          pattern=r"(r:'"+re.escape(ref)+r"'[^}]*?img:)'[^']*'"
+          replacement=r"\g<1>'/imagenes/"+dest.name+"'"
+          new,count=re.subn(pattern,replacement,text,count=1)
+          if count!=1: raise SystemExit("No se encontró la referencia en el catálogo")
+          html.write_text(new,encoding="utf-8")
+          print("Imagen guardada:",dest,"bytes:",dest.stat().st_size)
+          PY
+      - name: Publicar en GitHub
+        run: |
+          git config user.name "ELAH catálogo"
+          git config user.email "actions@users.noreply.github.com"
+          git add imagenes/ index.html
+          git commit -m "Actualizar foto de ${{ inputs.referencia }}" || exit 0
+          git push
