@@ -47,9 +47,9 @@ jobs:
           if os.environ["EVENT_NAME"]=="issues":
               title=event["issue"]["title"].strip().upper()
               body=event["issue"].get("body") or ""
-              urls=re.findall(r"https://(?:github\\.com/user-attachments/assets/|user-images\\.githubusercontent\\.com/)[^\\s)<>\\\"']+",body)
+              urls=re.findall(r"https://(?:github\.com/user-attachments/assets/|user-images\.githubusercontent\.com/)[^\s)<>\\"']+",body)
               if title=="LOTE ELAH":
-                  refs=re.findall(r"(?m)^\\s*(ELAH-[A-Z]{2,5}[0-9]{3,5})\\s*$",body.upper())
+                  refs=re.findall(r"(?m)^\s*(ELAH-[A-Z]{2,5}[0-9]{3,5})\s*$",body.upper())
                   if not refs or len(refs)!=len(urls): raise SystemExit(f"Se requieren referencias e imágenes en igual cantidad: {len(refs)} referencias, {len(urls)} imágenes")
                   jobs=list(zip(refs,urls))
               else:
