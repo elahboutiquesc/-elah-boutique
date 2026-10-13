@@ -1,63 +1,94 @@
-name: Importar fotografía al catálogo
+name: Importar fotografías ELAH
 on:
   workflow_dispatch:
     inputs:
       referencia:
-        description: 'Referencia, por ejemplo ELAH-AC034'
+        description: 'Referencia existente, ejemplo ELAH-AC034'
         required: true
         type: string
       url_imagen:
-        description: 'URL HTTPS pública de la imagen original'
+        description: 'Enlace HTTPS de la fotografía'
         required: true
         type: string
+  issues:
+    types: [opened, edited]
 permissions:
   contents: write
+  issues: write
+concurrency:
+  group: catalogo-imagenes
+  cancel-in-progress: false
 jobs:
   importar:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.issue.title, 'FOTO ELAH-')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Validar referencia y descargar imagen
+        with:
+          persist-credentials: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install --quiet Pillow
+      - name: Guardar imagen y enlazar referencia
         env:
-          REF: ${{ inputs.referencia }}
-          URL_IMAGEN: ${{ inputs.url_imagen }}
+          EVENT_PATH: ${{ github.event_path }}
+          EVENT_NAME: ${{ github.event_name }}
+          REF_INPUT: ${{ inputs.referencia }}
+          URL_INPUT: ${{ inputs.url_imagen }}
         run: |
           python3 - <<'PY'
-          import os,re,urllib.parse,urllib.request,subprocess
-          from pathlib import Path
-          ref=os.environ["REF"].strip().upper()
-          url=os.environ["URL_IMAGEN"].strip()
-          if not re.fullmatch(r"ELAH-[A-Z]{2,5}[0-9]{3,5}",ref): raise SystemExit("Referencia no válida")
-          parsed=urllib.parse.urlparse(url)
-          if parsed.scheme!="https" or not parsed.hostname: raise SystemExit("Se requiere URL HTTPS pública")
-          req=urllib.request.Request(url,headers={"User-Agent":"ELAH-Catalog-Importer/1.0"})
-          with urllib.request.urlopen(req,timeout=30) as resp:
-              if not resp.headers.get("Content-Type","").lower().startswith("image/"): raise SystemExit("El enlace no contiene una imagen")
-              data=resp.read(12_000_001)
-          if len(data)>12_000_000: raise SystemExit("Imagen mayor de 12 MB")
-          Path("imagenes").mkdir(exist_ok=True)
-          original=Path("/tmp/elah-original")
-          original.write_bytes(data)
-          subprocess.run(["python3","-m","pip","-q","install","Pillow"],check=True)
-          from PIL import Image,ImageOps
+          import os,json,re,urllib.parse,urllib.request,ipaddress,socket
           from io import BytesIO
-          im=ImageOps.exif_transpose(Image.open(BytesIO(data))).convert("RGB")
+          from pathlib import Path
+          from PIL import Image,ImageOps
+          event=json.loads(Path(os.environ["EVENT_PATH"]).read_text())
+          if os.environ["EVENT_NAME"]=="issues":
+              title=event["issue"]["title"].strip().upper()
+              match=re.fullmatch(r"FOTO (ELAH-[A-Z]{2,5}[0-9]{3,5})",title)
+              if not match: raise SystemExit("Título no válido")
+              ref=match.group(1)
+              body=event["issue"].get("body") or ""
+              matches=re.findall(r"https://(?:github\.com/user-attachments/assets/|user-images\.githubusercontent\.com/)[^\s)<>\"']+",body)
+              if not matches: raise SystemExit("Adjunta una imagen al formulario del issue")
+              url=matches[0]
+          else:
+              ref=os.environ["REF_INPUT"].strip().upper()
+              url=os.environ["URL_INPUT"].strip()
+          if not re.fullmatch(r"ELAH-[A-Z]{2,5}[0-9]{3,5}",ref): raise SystemExit("Referencia inválida")
+          parsed=urllib.parse.urlparse(url)
+          if parsed.scheme!="https" or parsed.hostname not in ("github.com","user-images.githubusercontent.com"):
+              raise SystemExit("Solo se aceptan imágenes adjuntas a GitHub")
+          req=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 ELAH-Catalog"})
+          with urllib.request.urlopen(req,timeout=45) as resp:
+              if not resp.headers.get("Content-Type","").lower().startswith("image/"): raise SystemExit("El archivo no es imagen")
+              raw=resp.read(12_000_001)
+          if len(raw)>12_000_000: raise SystemExit("Imagen demasiado grande (máximo 12 MB)")
+          im=ImageOps.exif_transpose(Image.open(BytesIO(raw))).convert("RGB")
           im.thumbnail((1600,2400),Image.Resampling.LANCZOS)
           dest=Path("imagenes")/(ref.lower()+".jpg")
-          im.save(dest,format="JPEG",quality=86,optimize=True,progressive=True)
-          html=Path("index.html")
-          text=html.read_text(encoding="utf-8")
+          dest.parent.mkdir(exist_ok=True)
+          im.save(dest,format="JPEG",quality=87,optimize=True,progressive=True)
+          page=Path("index.html")
+          html=page.read_text(encoding="utf-8")
           pattern=r"(r:'"+re.escape(ref)+r"'[^}]*?img:)'[^']*'"
-          replacement=r"\g<1>'/imagenes/"+dest.name+"'"
-          new,count=re.subn(pattern,replacement,text,count=1)
-          if count!=1: raise SystemExit("No se encontró la referencia en el catálogo")
-          html.write_text(new,encoding="utf-8")
-          print("Imagen guardada:",dest,"bytes:",dest.stat().st_size)
+          html,n=re.subn(pattern,lambda m:m.group(1)+"'/imagenes/"+dest.name+"'",html,count=1)
+          if n!=1: raise SystemExit("No existe esa referencia en el catálogo")
+          page.write_text(html,encoding="utf-8")
+          print(f"Preparado {ref}: {im.size}, {dest.stat().st_size} bytes")
           PY
-      - name: Publicar en GitHub
+      - name: Guardar cambios
         run: |
-          git config user.name "ELAH catálogo"
+          git config user.name "ELAH Catálogo"
           git config user.email "actions@users.noreply.github.com"
           git add imagenes/ index.html
-          git commit -m "Actualizar foto de ${{ inputs.referencia }}" || exit 0
-          git push
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Publicar fotografía ELAH"
+          git pull --rebase origin main
+          git push origin HEAD:main
+      - name: Cerrar solicitud completada
+        if: success() && github.event_name == 'issues'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ISSUE_NUMBER: ${{ github.event.issue.number }}
+        run: gh issue close "$ISSUE_NUMBER" --comment "Imagen incorporada al catálogo. Vercel publicará la actualización."
