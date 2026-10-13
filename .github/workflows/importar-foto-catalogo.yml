@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   importar:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.issue.title, 'FOTO ELAH-')
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.issue.title, 'FOTO ELAH-') || github.event.issue.title == 'LOTE ELAH'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -43,39 +43,43 @@ jobs:
           from pathlib import Path
           from PIL import Image,ImageOps
           event=json.loads(Path(os.environ["EVENT_PATH"]).read_text())
+          jobs=[]
           if os.environ["EVENT_NAME"]=="issues":
               title=event["issue"]["title"].strip().upper()
-              match=re.fullmatch(r"FOTO (ELAH-[A-Z]{2,5}[0-9]{3,5})",title)
-              if not match: raise SystemExit("Título no válido")
-              ref=match.group(1)
               body=event["issue"].get("body") or ""
-              matches=re.findall(r"https://(?:github\.com/user-attachments/assets/|user-images\.githubusercontent\.com/)[^\s)<>\"']+",body)
-              if not matches: raise SystemExit("Adjunta una imagen al formulario del issue")
-              url=matches[0]
+              urls=re.findall(r"https://(?:github\\.com/user-attachments/assets/|user-images\\.githubusercontent\\.com/)[^\\s)<>\\\"']+",body)
+              if title=="LOTE ELAH":
+                  refs=re.findall(r"(?m)^\\s*(ELAH-[A-Z]{2,5}[0-9]{3,5})\\s*$",body.upper())
+                  if not refs or len(refs)!=len(urls): raise SystemExit(f"Se requieren referencias e imágenes en igual cantidad: {len(refs)} referencias, {len(urls)} imágenes")
+                  jobs=list(zip(refs,urls))
+              else:
+                  match=re.fullmatch(r"FOTO (ELAH-[A-Z]{2,5}[0-9]{3,5})",title)
+                  if not match or not urls: raise SystemExit("Falta referencia o imagen")
+                  jobs=[(match.group(1),urls[0])]
           else:
-              ref=os.environ["REF_INPUT"].strip().upper()
-              url=os.environ["URL_INPUT"].strip()
-          if not re.fullmatch(r"ELAH-[A-Z]{2,5}[0-9]{3,5}",ref): raise SystemExit("Referencia inválida")
-          parsed=urllib.parse.urlparse(url)
-          if parsed.scheme!="https" or parsed.hostname not in ("github.com","user-images.githubusercontent.com"):
-              raise SystemExit("Solo se aceptan imágenes adjuntas a GitHub")
-          req=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 ELAH-Catalog"})
-          with urllib.request.urlopen(req,timeout=45) as resp:
-              if not resp.headers.get("Content-Type","").lower().startswith("image/"): raise SystemExit("El archivo no es imagen")
-              raw=resp.read(12_000_001)
-          if len(raw)>12_000_000: raise SystemExit("Imagen demasiado grande (máximo 12 MB)")
-          im=ImageOps.exif_transpose(Image.open(BytesIO(raw))).convert("RGB")
-          im.thumbnail((1600,2400),Image.Resampling.LANCZOS)
-          dest=Path("imagenes")/(ref.lower()+".jpg")
-          dest.parent.mkdir(exist_ok=True)
-          im.save(dest,format="JPEG",quality=87,optimize=True,progressive=True)
+              jobs=[(os.environ["REF_INPUT"].strip().upper(),os.environ["URL_INPUT"].strip())]
           page=Path("index.html")
           html=page.read_text(encoding="utf-8")
-          pattern=r"(r:'"+re.escape(ref)+r"'[^}]*?img:)'[^']*'"
-          html,n=re.subn(pattern,lambda m:m.group(1)+"'/imagenes/"+dest.name+"'",html,count=1)
-          if n!=1: raise SystemExit("No existe esa referencia en el catálogo")
+          for ref,url in jobs:
+              if not re.fullmatch(r"ELAH-[A-Z]{2,5}[0-9]{3,5}",ref): raise SystemExit("Referencia inválida")
+              parsed=urllib.parse.urlparse(url)
+              if parsed.scheme!="https" or parsed.hostname not in ("github.com","user-images.githubusercontent.com"):
+                  raise SystemExit("Solo imágenes adjuntas a GitHub")
+              req=urllib.request.Request(url,headers={"User-Agent":"Mozilla/5.0 ELAH-Catalog"})
+              with urllib.request.urlopen(req,timeout=45) as resp:
+                  raw=resp.read(12_000_001)
+                  if not resp.headers.get("Content-Type","").lower().startswith("image/"): raise SystemExit("No es imagen")
+              if len(raw)>12_000_000: raise SystemExit("Máximo 12 MB por imagen")
+              im=ImageOps.exif_transpose(Image.open(BytesIO(raw))).convert("RGB")
+              im.thumbnail((1600,2400),Image.Resampling.LANCZOS)
+              dest=Path("imagenes")/(ref.lower()+".jpg")
+              dest.parent.mkdir(exist_ok=True)
+              im.save(dest,format="JPEG",quality=87,optimize=True,progressive=True)
+              pattern=r"(r:'"+re.escape(ref)+r"'[^}]*?img:)'[^']*'"
+              html,n=re.subn(pattern,lambda m:m.group(1)+"'/imagenes/"+dest.name+"'",html,count=1)
+              if n!=1: raise SystemExit("Referencia no encontrada: "+ref)
+              print(f"Imagen lista {ref}: {im.size}, {dest.stat().st_size} bytes")
           page.write_text(html,encoding="utf-8")
-          print(f"Preparado {ref}: {im.size}, {dest.stat().st_size} bytes")
           PY
       - name: Guardar cambios
         run: |
