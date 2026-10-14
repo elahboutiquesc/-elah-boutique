@@ -1,22 +1,28 @@
-# ELAH Boutique — protocolo permanente de carga de imágenes
+# ELAH — carga por referencia (2026-10-14)
 
-Catálogo público: https://elah-boutique.vercel.app/#categorias
-Repositorio: elahboutiquesc/-elah-boutique, main, index.html
-Inventario: Google Sheets 1YqRrJhYFUnqyunE9Cp-qkh1y9HvjVtZsCQ70i7pxBME (tabs 2044694489 y 368802770).
+Sitio: https://elah-boutique.vercel.app
+Repositorio: elahboutiquesc/-elah-boutique, main
+Inventario maestro: 1YqRrJhYFUnqyunE9Cp-qkh1y9HvjVtZsCQ70i7pxBME; Inventario 2044694489, Tienda Web 368802770.
 
-## Almacenamiento
-- Banco histórico (casi lleno, NO USAR para nuevos productos): Floot bbbab6cd-7156-44c3-9c74-92463dfe89b3, https://elah-assets.floot.app
-- Banco activo para próximas fotos: Floot 8ef50686-a1ab-4ad5-92e1-de27c7df2a35, https://elah-imagenes.floot.app
-- Banco de reserva para cuando el activo se acerque a su límite: Floot 2891607b-d1d5-4500-9c7d-f2b70562ff93, https://elah-imagenes-reserva.floot.app
+## Cloudinary activo
+Cloud name: bl7tzrfk. Preset unsigned: elah_catalogo. Asset folder: ELAH_CATALOGO.
+Public ID: referencia exacta, normalizada a mayúsculas, por ejemplo ELAH-AC034.
+No API Secret en navegador ni repositorio. Las cargas unsigned no reemplazan recursos existentes.
 
-## Política para ~300 fotografías pendientes
-1. Optimizar CADA imagen antes de subirla: JPEG RGB, lado mayor máximo 1200 px, calidad 65–75, optimize=true; objetivo <250 KB por imagen, preferentemente 100–180 KB. No usar PNG de varios MB para fotos.
-2. Usar banco activo; si la cuota se agota, cambiar al banco de reserva SIN borrar fotos usadas.
-3. Floot upload_asset devuelve /_cdn/static/...; guardar URL absoluta https://elah-imagenes.floot.app/_cdn/static/... (o dominio del banco de reserva) en el campo img del producto de index.html.
-4. Mantener referencia única, id único, talla, precio y stock. Añadir producto al array data en index.html usando fetch_file y SHA actualizado, luego update_file.
-5. Registrar en ambas pestañas de Sheets mediante appendCells; evitar duplicados consultando previamente.
-6. Confirmar éxito SOLO cuando imagen esté alojada, URL registrada en GitHub y filas de Sheets guardadas. Si alguna etapa falla, explicar exactamente qué falta.
-7. Comprobar URLs e imágenes del catálogo. No afirmar capacidad ilimitada ni que futuras subidas están garantizadas; supervisar cuota y habilitar más almacenamiento antes de alcanzar límite.
-8. No borrar archivos existentes sin verificar que no son usados por la web u otros proyectos.
+## Fotos adjuntas en ChatGPT
+1. Resolver la referencia desde la instrucción explícita o identificación verificada del producto; no inventar la relación a partir de una foto ambigua. Si falta precio, talla o cantidad para un producto nuevo, solicitarlos; nunca inventarlos.
+2. Consultar index.html, productos.json y la fila de Inventario correspondiente antes de crear cualquier producto. Usar la referencia como identidad; conservar stock cuando solo se carga una foto.
+3. Optimizar la foto JPEG RGB, lado mayor hasta 1200 px y calidad 75. POST multipart a https://api.cloudinary.com/v1_1/bl7tzrfk/image/upload con file, upload_preset=elah_catalogo, public_id=REFERENCIA.
+4. Verificar secure_url y public_id. Si existing=true, conservar y avisar: no afirmar que se reemplazó. Reemplazar fotos requiere una carga firmada autorizada; no crear referencias adicionales para eludirlo.
+5. Para referencias ya registradas, no cambiar index.html ni agregar filas: /api/product-image?ref=REFERENCIA resuelve automáticamente Cloudinary. Inventario!I y Tienda Web!I tienen enlaces por referencia que se mantienen con fórmulas.
+6. Para productos nuevos, incorporar una sola entrada a index.html y productos.json, con ID de carrito único, y una sola fila en Inventario. Mantener la derivación de Tienda Web; verificar todos los campos y desplegar con GitHub.
+7. Confirmar que el endpoint público redirige a la foto correcta y que la fila del inventario conserva sus unidades.
 
-Estimación: 300 x 100–250 KB = 30–75 MB, muy por debajo de los ~207.5 MB usados en el banco histórico. Es una estimación de tamaño, no garantía contractual de cuota de Floot.
+## Cargador de la página
+/cargar-imagenes.html permite elegir una referencia existente sin renombrar una foto, o subir un lote con nombres ELAH-AC034.jpg. Optimiza las fotos, valida 10 MB y formatos JPG/PNG/WebP, impide referencias desconocidas y dos fotos de la misma referencia en un lote. No crea productos ni modifica unidades.
+
+## Catálogo e inventario
+productos.json conserva fotos históricas como respaldo. /api/product-image prioriza la foto de Cloudinary con el public ID de la referencia; si no existe, usa la URL histórica. El catálogo mantiene sus recortes originales cuando no hay archivo independiente. Cache de redirección hasta 30 segundos.
+/api/inventory consulta el Apps Script existente y usa Google Sheets como autoridad; no sobrescribe precios/stock con constantes históricas. Rechaza referencias duplicadas y omite referencias malformadas. La hoja contenía una referencia malformada `}}}}`; no se le asignó una referencia inventada.
+
+No usar Floot para nuevas cargas. No borrar las fotos históricas. No prometer cargas desde ChatGPT cuando no se está ejecutando una tarea ni afirmar que toda foto sin contexto puede identificarse automáticamente.
