@@ -9,6 +9,6 @@ export default async function handler(req,res){
   const r=await fetch(cloud,{method:'HEAD',signal:AbortSignal.timeout(5000)});
   if(r.ok){res.setHeader('Cache-Control','public, max-age=30, s-maxage=30');return res.redirect(307,cloud);}
  }catch{}
- if(product.img){res.setHeader('Cache-Control','public, max-age=15, s-maxage=15');return res.redirect(307,product.img);}
+ if(product.img && !product.img.startsWith('/api/product-image')){res.setHeader('Cache-Control','public, max-age=15, s-maxage=15');return res.redirect(307,product.img);}
  res.setHeader('Cache-Control','no-store');return res.status(404).end();
 }
