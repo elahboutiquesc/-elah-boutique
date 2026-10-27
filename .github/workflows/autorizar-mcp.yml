@@ -19,8 +19,8 @@ jobs:
           REQUEST_ID: ${{ inputs.request_id }}
         run: |
           python3 - <<'PY'
-          import json, os, re, urllib.request, urllib.parse
-          request_id = os.environ['REQUEST_ID']
+          import json, os, re, urllib.request, urllib.parse, urllib.error
+          request_id = os.environ['REQUEST_ID'].strip()
           if not re.fullmatch(r'[-_A-Za-z0-9]{43}', request_id):
               raise SystemExit('Identificador inválido')
           audience = 'https://elah-boutique.vercel.app/oauth/approve'
@@ -33,6 +33,13 @@ jobs:
               with urllib.request.urlopen(req, timeout=20) as response:
                   if response.status != 200:
                       raise SystemExit('No fue posible aprobar la solicitud')
+          except urllib.error.HTTPError as error:
+              messages = {
+                  400: 'Solicitud caducada, inexistente o ya completada. Inicia una conexión nueva en ChatGPT y usa su nuevo request_id.',
+                  403: 'GitHub no pudo acreditar la identidad autorizada para este workflow en main.',
+                  503: 'El servicio OAuth o su almacenamiento no está disponible. Reintenta mientras la solicitud siga vigente.'
+              }
+              raise SystemExit(messages.get(error.code, 'El servicio rechazó la aprobación (HTTP ' + str(error.code) + ').'))
           except Exception:
               raise SystemExit('No fue posible aprobar la solicitud. Comprueba que siga vigente y que el despliegue OAuth esté disponible.')
           print('Solicitud aprobada. Vuelve a la ventana de autorización de ELAH.')

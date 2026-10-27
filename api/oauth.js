@@ -28,7 +28,7 @@ export default async function handler(req,res) {
   if(req.method==='GET'&&action==='authorize'){
    const started=await startAuthorization(fields(Object.fromEntries(Object.entries(req.query).filter(([k])=>k!=='action'))));
    res.setHeader('Set-Cookie',`__Host-elah_oauth=${started.session}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=600`);
-   const nonce=random();res.setHeader('Content-Security-Policy',`default-src 'none'; script-src 'nonce-${nonce}'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`);
+   const nonce=random();res.setHeader('Content-Security-Policy',`default-src 'none'; script-src 'nonce-${nonce}'; connect-src 'self'; form-action 'self' https://chatgpt.com; base-uri 'none'; frame-ancestors 'none'`);
    res.setHeader('Content-Type','text/html; charset=utf-8');
    return res.status(200).end(approvalPage({id:started.id,title:'Conectar '+started.client_name+' con ELAH Boutique',nonce,statusPath:'/oauth/status',completePath:'/oauth/complete'}));
   }

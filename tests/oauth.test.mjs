@@ -90,3 +90,21 @@ test('cross-origin completion, forged approvals and malformed fields cannot auth
  r=response();await endpoint({method:'POST',headers:{},query:{action:'approve'},body:{request_id:oauth.random()}},r);assert.equal(r.code,403);
  r=response();await endpoint({method:'POST',headers:{},query:{action:'token'},body:{client_id:[]}},r);assert.equal(r.code,400);
 });
+
+test('approval retry is idempotent and completion redirects to the registered ChatGPT callback',async()=>{
+ const request=await oauth.startAuthorization(query());
+ await approve(request);await approve(request);
+ const r=response();
+ await endpoint({method:'POST',headers:{origin:oauth.ISSUER,cookie:'__Host-elah_oauth='+request.session},query:{action:'complete'},body:{request_id:request.id}},r);
+ assert.equal(r.code,303);
+ const callback=new URL(r.headers.Location);
+ assert.equal(callback.origin,'https://chatgpt.com');
+ assert.equal(callback.searchParams.get('state'),'test-state');
+ assert.ok(callback.searchParams.get('code'));
+ assert.ok(r.headers['Set-Cookie'].includes('Max-Age=0'));
+ await assert.rejects(approve(request));
+});
+test('authorization CSP permits the ChatGPT redirect after form completion',async()=>{
+ const r=response();await endpoint({method:'GET',headers:{},query:{action:'authorize',...query()}},r);
+ assert.ok(r.headers['Content-Security-Policy'].includes("form-action 'self' https://chatgpt.com;"));
+});
