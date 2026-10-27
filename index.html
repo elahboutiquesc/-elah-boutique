@@ -159,7 +159,7 @@ document.addEventListener('error',event=>{const img=event.target;if(!(img instan
 const elahImageOverrides=(()=>{try{return JSON.parse(localStorage.getItem('elahCloudinaryUploads')||'[]')}catch{return []}})();
 const elahImageByRef=new Map();
 for(const item of elahImageOverrides){if(item&&/^ELAH-[A-Z]{2,3}[0-9]{3,}$/.test(item.referencia)&&/^https:\/\/res\.cloudinary\.com\/bl7tzrfk\/image\/upload\//.test(item.url)){if(!elahImageByRef.has(item.referencia))elahImageByRef.set(item.referencia,item.url)}}
-for(const item of data){if(elahImageByRef.has(item.r))item.img=elahImageByRef.get(item.r)}
+for(const item of data){if(elahImageByRef.has(item.r))item.img=elahImageByRef.get(item.r);else if(item.r==='ELAH-AC044')item.img='https://res.cloudinary.com/bl7tzrfk/image/upload/elah_catalogo/ELAH-AC044';}
 const elahOriginalImageFor=(ref)=>data.find(p=>p.r===ref)?.img||'';
 function elahResolveImages(root=document){root.querySelectorAll('article').forEach(card=>{const ref=card.querySelector('.ref')?.textContent?.trim();if(!ref)return;const image=card.querySelector('img.productPhoto');if(!image)return;const override=elahImageByRef.get(ref);if(override&&image.getAttribute('src')!==override)image.src=override;});}
 const elahObserver=new MutationObserver(()=>{if(elahObserver.scheduled)return;elahObserver.scheduled=true;requestAnimationFrame(()=>{elahObserver.scheduled=false;elahResolveImages()})});
