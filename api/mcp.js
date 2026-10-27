@@ -4,7 +4,7 @@ import { timingSafeEqual } from 'node:crypto';
 const tool={name:'publicar_fotografia_en_elah',title:'Publicar fotografía en ELAH',description:'Recibe una fotografía en base64 y la referencia ELAH, la publica en Cloudinary y confirma su registro en el catálogo.',inputSchema:{type:'object',properties:{reference:{type:'string',description:'Referencia, por ejemplo ELAH-AC044'},image_base64:{type:'string',description:'Contenido binario de la fotografía codificado en base64, sin prefijo data:'},mime_type:{type:'string',enum:['image/jpeg','image/png','image/webp']}},required:['reference','image_base64','mime_type'],additionalProperties:false}};
 const reply=(id,result)=>({jsonrpc:'2.0',id,result});
 const error=(id,code,message)=>({jsonrpc:'2.0',id,error:{code,message}});
-function validKey(req){const secret=process.env.ELAH_MCP_KEY||'';const actual=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');const a=Buffer.from(actual),b=Buffer.from(secret);return !!secret&&a.length===b.length&&timingSafeEqual(a,b)}
+function validKey(req){const secret=process.env.ELAH_ADMIN_TOKEN||'';const actual=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');const a=Buffer.from(actual),b=Buffer.from(secret);return !!secret&&a.length===b.length&&timingSafeEqual(a,b)}
 export const config={api:{bodyParser:{sizeLimit:'6mb'}}};
 export default async function handler(req,res){
 res.setHeader('Cache-Control','no-store');res.setHeader('Access-Control-Allow-Methods','POST, OPTIONS');
