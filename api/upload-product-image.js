@@ -1,12 +1,12 @@
+import {authorizeAdmin} from '../lib/admin-session.js';
 import { requireExistingReference } from '../lib/existing-reference.js';
 import { put, list } from '@vercel/blob';
-import { timingSafeEqual } from 'node:crypto';
 export const config={api:{bodyParser:{sizeLimit:'6mb'}}};
-const authorized=req=>{const expected=process.env.ELAH_ADMIN_TOKEN||'';const actual=String(req.headers.authorization||'').replace(/^Bearer /i,'');const a=Buffer.from(actual),b=Buffer.from(expected);return !!expected&&a.length===b.length&&timingSafeEqual(a,b)};
+
 export default async function handler(req,res){
 res.setHeader('Cache-Control','no-store');
 if(req.method!=='POST')return res.status(405).json({error:'Método no permitido'});
-if(!authorized(req))return res.status(401).json({error:'Acceso administrativo requerido'});
+try{if(!await authorizeAdmin(req))return res.status(401).json({error:'Acceso administrativo requerido'});}catch(e){return res.status(e.status||503).json({error:e.status?'Acceso denegado':'Autorización no disponible'});}
 if(!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({error:'Almacenamiento sin conexión'});
 const {reference,image,mime}=req.body||{};const ref=String(reference||'').toUpperCase().trim();
 if(!/^ELAH-[A-Z]{2,3}[0-9]{3,}$/.test(ref)||!/^image\/(jpeg|png|webp)$/.test(mime||'')||typeof image!=='string'||image.length>7_000_000||!/^[A-Za-z0-9+/=]+$/.test(image))return res.status(400).json({error:'Referencia o imagen inválida'});
