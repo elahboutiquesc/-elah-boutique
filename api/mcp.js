@@ -1,9 +1,39 @@
+import { readAttachedImage, validAttachment } from '../lib/attached-image.js';
 import { requireExistingReference } from '../lib/existing-reference.js';
 // ELAH Boutique: remote MCP connector (Streamable HTTP, JSON-RPC 2.0).
 // Uses the existing ELAH_ADMIN_TOKEN and unsigned Cloudinary preset.
 import { timingSafeEqual } from 'node:crypto';
 import registryHandler from './image-registry.js';
-const tool={name:'publicar_fotografia_en_elah',title:'Publicar fotografía en ELAH',description:'Recibe una fotografía en base64 y la referencia ELAH, la publica en Cloudinary y confirma su registro en el catálogo.',inputSchema:{type:'object',properties:{reference:{type:'string',description:'Referencia, por ejemplo ELAH-AC044'},image_base64:{type:'string',description:'Contenido binario de la fotografía codificado en base64, sin prefijo data:'},mime_type:{type:'string',enum:['image/jpeg','image/png','image/webp']}},required:['reference','image_base64','mime_type'],additionalProperties:false}};
+const tool = {
+ name: 'publicar_fotografia_en_elah',
+ title: 'Publicar fotografía en ELAH',
+ description: 'Publica una fotografía adjunta JPG, PNG o WebP (hasta 3,5 MB) en una referencia existente de ELAH. Usa file para archivos de la conversación; no inventes enlaces ni referencias. No modifica existencias. Si falta la referencia, solicítala antes de publicar.',
+ inputSchema: {
+  type: 'object',
+  properties: {
+   reference: {type: 'string', description: 'Referencia existente exacta del producto, por ejemplo ELAH-AC034'},
+   file: {
+    type: 'object',
+    description: 'Una fotografía adjunta de la conversación.',
+    properties: {
+     download_url: {type: 'string'},
+     file_id: {type: 'string'},
+     mime_type: {type: 'string'},
+     file_name: {type: 'string'}
+    },
+    required: ['download_url', 'file_id'],
+    additionalProperties: false
+   },
+   image_base64: {type: 'string', description: 'Compatibilidad con clientes anteriores: imagen en base64, sin prefijo data:. Usar file para adjuntos de ChatGPT.'},
+   mime_type: {type: 'string', enum: ['image/jpeg', 'image/png', 'image/webp']}
+  },
+  required: ['reference'],
+  oneOf: [{required: ['file']}, {required: ['image_base64', 'mime_type']}],
+  additionalProperties: false
+ },
+ annotations: {readOnlyHint: false, destructiveHint: true, openWorldHint: true},
+ _meta: {'openai/fileParams': ['file']}
+};
 const recoveryTool={name:'recuperar_registro_fotografia',description:'Registra de nuevo una URL ya subida a Cloudinary sin volver a cargar la fotografía ni modificar inventario.',inputSchema:{type:'object',properties:{reference:{type:'string'},url:{type:'string'},public_id:{type:'string'}},required:['reference','url','public_id'],additionalProperties:false}};
 const reply=(id,result)=>({jsonrpc:'2.0',id,result});
 const error=(id,code,message)=>({jsonrpc:'2.0',id,error:{code,message}});
@@ -29,8 +59,10 @@ const result=code===200?{status:'registered',...record}:{status:'registration_pe
 return res.status(200).json(reply(id,{...(code!==200?{isError:true}:{}),content:[{type:'text',text:JSON.stringify(result)}]}));
 }
 if(params?.name!==tool.name)return res.status(200).json(error(id,-32602,'Unknown tool'));
-const {reference,image_base64,mime_type}=params.arguments||{};
-if(!/^ELAH-[A-Z]{2,3}[0-9]{3,}$/.test(reference||'')||!/^image\/(jpeg|png|webp)$/.test(mime_type||'')||typeof image_base64!=='string'||image_base64.length>4_700_000||!/^[A-Za-z0-9+/=]+$/.test(image_base64))return res.status(200).json(reply(id,{isError:true,content:[{type:'text',text:'Imagen o referencia inválida; máximo aproximado 3,5 MB.'}]}));
+const {reference,image_base64,mime_type,file}=params.arguments||{};
+const attached=file!==undefined;
+const validInput=attached ? validAttachment(file)&&image_base64===undefined&&mime_type===undefined : /^image\/(jpeg|png|webp)$/.test(mime_type||'')&&typeof image_base64==='string'&&image_base64.length<=4_700_000&&/^[A-Za-z0-9+/=]+$/.test(image_base64);
+if(!/^ELAH-[A-Z]{2,3}[0-9]{3,}$/.test(reference||'')||!validInput)return res.status(200).json(reply(id,{isError:true,content:[{type:'text',text:'Adjunta una fotografía JPG, PNG o WebP y una referencia existente; máximo 3,5 MB. No combines adjunto y base64.'}]}));
 try{
 await requireExistingReference(reference);
 const token=process.env.BLOB_READ_WRITE_TOKEN;
@@ -39,7 +71,8 @@ const {put,list}=await import('@vercel/blob');
 // A configured token alone does not prove the registry is reachable. This read
 // must succeed before Cloudinary receives any image data; it creates no blobs.
 await list({prefix:'image-registry/',limit:1,token});
-const form=new FormData();form.append('file','data:'+mime_type+';base64,'+image_base64);form.append('upload_preset','elah_catalogo');form.append('public_id',reference);form.append('context','reference='+reference);
+const image=attached ? await readAttachedImage(file) : {base64:image_base64,mimeType:mime_type};
+const form=new FormData();form.append('file','data:'+image.mimeType+';base64,'+image.base64);form.append('upload_preset','elah_catalogo');form.append('public_id',reference);form.append('context','reference='+reference);
 const cloud=await fetch('https://api.cloudinary.com/v1_1/bl7tzrfk/image/upload',{method:'POST',body:form});
 const uploaded=await cloud.json();if(!cloud.ok||!uploaded.secure_url)throw Error('Cloudinary: '+(uploaded.error?.message||cloud.status));
 if(![reference,'elah_catalogo/'+reference].includes(uploaded.public_id))throw Error('Cloudinary devolvió una referencia diferente');
