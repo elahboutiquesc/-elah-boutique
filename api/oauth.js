@@ -1,6 +1,7 @@
+import {approvalPage} from '../lib/approval-page.js';
 import {authorizationMetadata,resourceMetadata,startAuthorization,browserRequest,finishAuthorization,exchangeToken,revokeToken,approveAuthorization,ISSUER,random} from '../lib/oauth.js';
 export const config={api:{bodyParser:{sizeLimit:'32kb'}}};
-const escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
 function cookie(req) {
  const values=String(req.headers.cookie||'').split(';').map(x=>x.trim()).filter(x=>x.startsWith('__Host-elah_oauth='));
  return values.length===1?values[0].slice('__Host-elah_oauth='.length):'';
@@ -29,7 +30,7 @@ export default async function handler(req,res) {
    res.setHeader('Set-Cookie',`__Host-elah_oauth=${started.session}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=600`);
    const nonce=random();res.setHeader('Content-Security-Policy',`default-src 'none'; script-src 'nonce-${nonce}'; connect-src 'self'; form-action 'self'; base-uri 'none'; frame-ancestors 'none'`);
    res.setHeader('Content-Type','text/html; charset=utf-8');
-   return res.status(200).end(`<!doctype html><html lang="es"><meta charset="utf-8"><title>Autorizar ELAH Boutique</title><h1>Conectar ${escape(started.client_name)} con ELAH Boutique</h1><p>Esta conexión permite publicar y recuperar fotografías de productos existentes. No permite modificar existencias.</p><p>Solo un administrador con acceso de escritura al repositorio puede aprobarla. En GitHub, abre <b>Run workflow</b>, selecciona <b>main</b> y pega este identificador en <b>request_id</b>:</p><p><code>${started.id}</code></p><p><a href="https://github.com/elahboutiquesc/-elah-boutique/actions/workflows/autorizar-mcp.yml" target="_blank" rel="noopener noreferrer">Abrir aprobación en GitHub</a></p><p>Revisa la solicitud y su origen antes de aprobar. No compartas claves administrativas. Mantén esta ventana abierta; la solicitud caduca en diez minutos.</p><p id="status" role="status">Esperando aprobación…</p><form id="complete" method="post" action="/oauth/complete"><input type="hidden" name="request_id" value="${started.id}"></form><script nonce="${nonce}">const poll=async()=>{try{const r=await fetch('/oauth/status?request_id=${started.id}',{cache:'no-store'});if(!r.ok)throw Error();const d=await r.json();if(d.approved){document.getElementById('complete').submit();return;}setTimeout(poll,3000);}catch{document.getElementById('status').textContent='La solicitud caducó o no está disponible. Inicia la conexión de nuevo.';}};setTimeout(poll,3000);</script></html>`);
+   return res.status(200).end(approvalPage({id:started.id,title:'Conectar '+started.client_name+' con ELAH Boutique',nonce,statusPath:'/oauth/status',completePath:'/oauth/complete'}));
   }
   if(req.method==='GET'&&action==='status'){
    const stored=await browserRequest(req.query.request_id,cookie(req));return res.json({approved:stored.value.status==='approved'});

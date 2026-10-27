@@ -1,7 +1,7 @@
+import {authorizeAdmin} from '../lib/admin-session.js';
 import { requireExistingReference } from '../lib/existing-reference.js';
 import { put, get, list } from '@vercel/blob';
-import { timingSafeEqual } from 'node:crypto';
-function authorized(req){const secret=process.env.ELAH_ADMIN_TOKEN;if(!secret)return false;const supplied=String(req.headers.authorization||'').replace(/^Bearer /i,'');const a=Buffer.from(supplied),b=Buffer.from(secret);return a.length===b.length&&timingSafeEqual(a,b)}
+
 const refPattern=/^ELAH-[A-Z]{2,3}[0-9]{3,}$/;
 const nameFor=ref=>'image-registry/'+ref+'.json';
 const validUrl=(url,ref)=>{try{const u=new URL(url);return u.protocol==='https:'&&u.hostname==='res.cloudinary.com'&&u.pathname.startsWith('/bl7tzrfk/image/upload/')&&u.pathname.includes(encodeURIComponent(ref))}catch{return false}};
@@ -15,7 +15,7 @@ if(!refPattern.test(ref))return res.status(400).json({error:'Referencia inválid
 try{const file=await get(nameFor(ref),{access:'private',token:process.env.BLOB_READ_WRITE_TOKEN});if(!file)return res.status(404).json({error:'Referencia sin fotografía'});if(file.statusCode!==200||!file.stream)throw Error('Registro sin contenido');const obj=await new Response(file.stream).json();if(obj.reference!==ref||!validUrl(obj.url,ref))throw Error('Registro inválido');return res.status(200).json(obj)}catch(e){return res.status(500).json({error:'No se pudo consultar el registro'})}
 }
 if(req.method==='POST'){
-if(!authorized(req))return res.status(401).json({error:'Acceso de administrador requerido'});
+try{if(!await authorizeAdmin(req))return res.status(401).json({error:'Acceso administrativo requerido'});}catch(e){return res.status(e.status||503).json({error:e.status?'Acceso denegado':'Autorización no disponible'});}
 const {reference,url,public_id}=req.body||{};const ref=String(reference||'').trim().toUpperCase();
 if(!refPattern.test(ref)||!validUrl(url,ref))return res.status(400).json({error:'Referencia o enlace Cloudinary inválido'});
 if(typeof public_id!=='string'||!public_id.includes(ref))return res.status(400).json({error:'Identificador Cloudinary no coincide'});
