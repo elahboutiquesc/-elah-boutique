@@ -1,3 +1,4 @@
+import {validateAccess, challenge, SCOPE} from '../lib/oauth.js';
 import { readAttachedImage, validAttachment } from '../lib/attached-image.js';
 import { requireExistingReference } from '../lib/existing-reference.js';
 // ELAH Boutique: remote MCP connector (Streamable HTTP, JSON-RPC 2.0).
@@ -32,9 +33,12 @@ const tool = {
   additionalProperties: false
  },
  annotations: {readOnlyHint: false, destructiveHint: true, openWorldHint: true},
- _meta: {'openai/fileParams': ['file']}
+ securitySchemes: [{type:'oauth2',scopes:[SCOPE]}],
+ _meta: {'openai/fileParams': ['file'],securitySchemes:[{type:'oauth2',scopes:[SCOPE]}]}
 };
 const recoveryTool={name:'recuperar_registro_fotografia',description:'Registra de nuevo una URL ya subida a Cloudinary sin volver a cargar la fotografía ni modificar inventario.',inputSchema:{type:'object',properties:{reference:{type:'string'},url:{type:'string'},public_id:{type:'string'}},required:['reference','url','public_id'],additionalProperties:false}};
+recoveryTool.securitySchemes=[{type:'oauth2',scopes:[SCOPE]}];
+recoveryTool._meta={securitySchemes:recoveryTool.securitySchemes};
 const reply=(id,result)=>({jsonrpc:'2.0',id,result});
 const error=(id,code,message)=>({jsonrpc:'2.0',id,error:{code,message}});
 function validKey(req){const secret=process.env.ELAH_ADMIN_TOKEN||'';const actual=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');const a=Buffer.from(actual),b=Buffer.from(secret);return !!secret&&a.length===b.length&&timingSafeEqual(a,b)}
@@ -43,8 +47,13 @@ export default async function handler(req,res){
 res.setHeader('Cache-Control','no-store');res.setHeader('Access-Control-Allow-Methods','POST, OPTIONS');
 res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type, MCP-Protocol-Version, MCP-Session-Id');
 if(req.method==='OPTIONS')return res.status(204).end();
+let authorized=validKey(req);
+if(!authorized){
+ try{authorized=Boolean(await validateAccess(String(req.headers.authorization||'').match(/^Bearer (\S+)$/i)?.[1]));}
+ catch{return res.status(503).json({error:'Autorización no disponible'});}
+}
+if(!authorized){challenge(res);return res.status(401).json({error:'Autorización MCP requerida'});}
 if(req.method!=='POST')return res.status(405).json({error:'Use POST'});
-if(!validKey(req))return res.status(401).json({error:'Autorización MCP requerida'});
 const {jsonrpc,id,method,params}=req.body||{};
 if(jsonrpc!=='2.0'||typeof method!=='string')return res.status(400).json(error(id??null,-32600,'Invalid Request'));
 if(method==='notifications/initialized')return res.status(202).end();
@@ -54,7 +63,7 @@ if(method==='tools/list')return res.status(200).json(reply(id,{tools:[tool,recov
 if(method!=='tools/call')return res.status(200).json(error(id,-32601,'Method not found'));
 if(params?.name===recoveryTool.name){
 let code=200,record;
-await registryHandler({...req,body:params.arguments||{}},{setHeader(){},status(n){code=n;return this},json(data){record=data;return this}});
+await registryHandler({...req,headers:{...req.headers,authorization:'Bearer '+process.env.ELAH_ADMIN_TOKEN},body:params.arguments||{}},{setHeader(){},status(n){code=n;return this},json(data){record=data;return this}});
 const result=code===200?{status:'registered',...record}:{status:'registration_pending',error:'No fue posible recuperar el registro; conserva el enlace y reintenta.'};
 return res.status(200).json(reply(id,{...(code!==200?{isError:true}:{}),content:[{type:'text',text:JSON.stringify(result)}]}));
 }

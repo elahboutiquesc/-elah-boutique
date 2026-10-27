@@ -1,0 +1,39 @@
+name: Autorizar conexión MCP de ELAH
+on:
+  workflow_dispatch:
+    inputs:
+      request_id:
+        description: 'Identificador de la solicitud OAuth mostrado por ELAH. Aprobar solo una solicitud propia.'
+        required: true
+        type: string
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  autorizar:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Aprobar con la identidad firmada de GitHub
+        env:
+          REQUEST_ID: ${{ inputs.request_id }}
+        run: |
+          python3 - <<'PY'
+          import json, os, re, urllib.request, urllib.parse
+          request_id = os.environ['REQUEST_ID']
+          if not re.fullmatch(r'[-_A-Za-z0-9]{43}', request_id):
+              raise SystemExit('Identificador inválido')
+          audience = 'https://elah-boutique.vercel.app/oauth/approve'
+          oidc_url = os.environ['ACTIONS_ID_TOKEN_REQUEST_URL'] + '&audience=' + urllib.parse.quote(audience, safe='')
+          req = urllib.request.Request(oidc_url, headers={'Authorization': 'Bearer ' + os.environ['ACTIONS_ID_TOKEN_REQUEST_TOKEN']})
+          with urllib.request.urlopen(req, timeout=20) as response:
+              token = json.load(response)['value']
+          req = urllib.request.Request(audience, data=json.dumps({'request_id': request_id}).encode(), headers={'Content-Type':'application/json','Authorization':'Bearer ' + token})
+          try:
+              with urllib.request.urlopen(req, timeout=20) as response:
+                  if response.status != 200:
+                      raise SystemExit('No fue posible aprobar la solicitud')
+          except Exception:
+              raise SystemExit('No fue posible aprobar la solicitud. Comprueba que siga vigente y que el despliegue OAuth esté disponible.')
+          print('Solicitud aprobada. Vuelve a la ventana de autorización de ELAH.')
+          PY
