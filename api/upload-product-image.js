@@ -1,0 +1,20 @@
+import { put } from '@vercel/blob';
+import { timingSafeEqual } from 'node:crypto';
+export const config={api:{bodyParser:{sizeLimit:'6mb'}}};
+const authorized=req=>{const expected=process.env.ELAH_ADMIN_TOKEN||'';const actual=String(req.headers.authorization||'').replace(/^Bearer /i,'');const a=Buffer.from(actual),b=Buffer.from(expected);return !!expected&&a.length===b.length&&timingSafeEqual(a,b)};
+export default async function handler(req,res){
+res.setHeader('Cache-Control','no-store');
+if(req.method!=='POST')return res.status(405).json({error:'Método no permitido'});
+if(!authorized(req))return res.status(401).json({error:'Acceso administrativo requerido'});
+if(!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({error:'Almacenamiento sin conexión'});
+const {reference,image,mime}=req.body||{};const ref=String(reference||'').toUpperCase().trim();
+if(!/^ELAH-[A-Z]{2,3}[0-9]{3,}$/.test(ref)||!/^image\/(jpeg|png|webp)$/.test(mime||'')||typeof image!=='string'||image.length>7_000_000||!/^[A-Za-z0-9+/=]+$/.test(image))return res.status(400).json({error:'Referencia o imagen inválida'});
+try{
+const form=new FormData();form.append('file','data:'+mime+';base64,'+image);form.append('upload_preset','elah_catalogo');form.append('public_id',ref);form.append('context','reference='+ref);
+const response=await fetch('https://api.cloudinary.com/v1_1/bl7tzrfk/image/upload',{method:'POST',body:form});
+const data=await response.json();if(!response.ok||!data.secure_url)return res.status(502).json({error:'Cloudinary rechazó la fotografía',detail:data.error?.message||''});
+const record={reference:ref,url:data.secure_url,public_id:data.public_id,updatedAt:new Date().toISOString()};
+await put('image-registry/'+ref+'.json',JSON.stringify(record),{access:'private',contentType:'application/json',addRandomSuffix:false,allowOverwrite:true,token:process.env.BLOB_READ_WRITE_TOKEN});
+return res.status(200).json(record);
+}catch(e){return res.status(500).json({error:'No se pudo completar la carga y el registro'})}
+}
