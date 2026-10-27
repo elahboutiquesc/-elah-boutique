@@ -1,7 +1,10 @@
+import { requireExistingReference } from '../lib/existing-reference.js';
 // ELAH Boutique: remote MCP connector (Streamable HTTP, JSON-RPC 2.0).
-// Configure ELAH_MCP_KEY separately from ELAH_ADMIN_TOKEN in Vercel.
+// Uses the existing ELAH_ADMIN_TOKEN and unsigned Cloudinary preset.
 import { timingSafeEqual } from 'node:crypto';
+import registryHandler from './image-registry.js';
 const tool={name:'publicar_fotografia_en_elah',title:'Publicar fotografía en ELAH',description:'Recibe una fotografía en base64 y la referencia ELAH, la publica en Cloudinary y confirma su registro en el catálogo.',inputSchema:{type:'object',properties:{reference:{type:'string',description:'Referencia, por ejemplo ELAH-AC044'},image_base64:{type:'string',description:'Contenido binario de la fotografía codificado en base64, sin prefijo data:'},mime_type:{type:'string',enum:['image/jpeg','image/png','image/webp']}},required:['reference','image_base64','mime_type'],additionalProperties:false}};
+const recoveryTool={name:'recuperar_registro_fotografia',description:'Registra de nuevo una URL ya subida a Cloudinary sin volver a cargar la fotografía ni modificar inventario.',inputSchema:{type:'object',properties:{reference:{type:'string'},url:{type:'string'},public_id:{type:'string'}},required:['reference','url','public_id'],additionalProperties:false}};
 const reply=(id,result)=>({jsonrpc:'2.0',id,result});
 const error=(id,code,message)=>({jsonrpc:'2.0',id,error:{code,message}});
 function validKey(req){const secret=process.env.ELAH_ADMIN_TOKEN||'';const actual=String(req.headers.authorization||'').replace(/^Bearer\s+/i,'');const a=Buffer.from(actual),b=Buffer.from(secret);return !!secret&&a.length===b.length&&timingSafeEqual(a,b)}
@@ -17,18 +20,37 @@ if(jsonrpc!=='2.0'||typeof method!=='string')return res.status(400).json(error(i
 if(method==='notifications/initialized')return res.status(202).end();
 if(method==='initialize')return res.status(200).json(reply(id,{protocolVersion:'2025-03-26',capabilities:{tools:{}},serverInfo:{name:'elah-boutique',version:'1.0.0'}}));
 if(method==='ping')return res.status(200).json(reply(id,{}));
-if(method==='tools/list')return res.status(200).json(reply(id,{tools:[tool]}));
+if(method==='tools/list')return res.status(200).json(reply(id,{tools:[tool,recoveryTool]}));
 if(method!=='tools/call')return res.status(200).json(error(id,-32601,'Method not found'));
+if(params?.name===recoveryTool.name){
+let code=200,record;
+await registryHandler({...req,body:params.arguments||{}},{setHeader(){},status(n){code=n;return this},json(data){record=data;return this}});
+const result=code===200?{status:'registered',...record}:{status:'registration_pending',error:'No fue posible recuperar el registro; conserva el enlace y reintenta.'};
+return res.status(200).json(reply(id,{...(code!==200?{isError:true}:{}),content:[{type:'text',text:JSON.stringify(result)}]}));
+}
 if(params?.name!==tool.name)return res.status(200).json(error(id,-32602,'Unknown tool'));
 const {reference,image_base64,mime_type}=params.arguments||{};
 if(!/^ELAH-[A-Z]{2,3}[0-9]{3,}$/.test(reference||'')||!/^image\/(jpeg|png|webp)$/.test(mime_type||'')||typeof image_base64!=='string'||image_base64.length>4_700_000||!/^[A-Za-z0-9+/=]+$/.test(image_base64))return res.status(200).json(reply(id,{isError:true,content:[{type:'text',text:'Imagen o referencia inválida; máximo aproximado 3,5 MB.'}]}));
 try{
+await requireExistingReference(reference);
+const token=process.env.BLOB_READ_WRITE_TOKEN;
+if(!token)throw Error('Falta conexión a Vercel Blob');
+const {put,list}=await import('@vercel/blob');
+// A configured token alone does not prove the registry is reachable. This read
+// must succeed before Cloudinary receives any image data; it creates no blobs.
+await list({prefix:'image-registry/',limit:1,token});
 const form=new FormData();form.append('file','data:'+mime_type+';base64,'+image_base64);form.append('upload_preset','elah_catalogo');form.append('public_id',reference);form.append('context','reference='+reference);
 const cloud=await fetch('https://api.cloudinary.com/v1_1/bl7tzrfk/image/upload',{method:'POST',body:form});
 const uploaded=await cloud.json();if(!cloud.ok||!uploaded.secure_url)throw Error('Cloudinary: '+(uploaded.error?.message||cloud.status));
-const {put}=await import('@vercel/blob');if(!process.env.BLOB_READ_WRITE_TOKEN)throw Error('Falta conexión a Vercel Blob');
+if(![reference,'elah_catalogo/'+reference].includes(uploaded.public_id))throw Error('Cloudinary devolvió una referencia diferente');
 const record={reference,url:uploaded.secure_url,public_id:uploaded.public_id,updatedAt:new Date().toISOString()};
-await put('image-registry/'+reference+'.json',JSON.stringify(record),{access:'private',contentType:'application/json',addRandomSuffix:false,allowOverwrite:true,token:process.env.BLOB_READ_WRITE_TOKEN});
+try{
+await put('image-registry/'+reference+'.json',JSON.stringify(record),{access:'private',contentType:'application/json',addRandomSuffix:false,allowOverwrite:true,token});
+}catch{
+// The image remains in Cloudinary. Return its recovery data to the authenticated
+// caller so a retry only writes the same registry key, never uploads again.
+return res.status(200).json(reply(id,{isError:true,content:[{type:'text',text:JSON.stringify({status:'registration_pending',...record,recovery:{tool:recoveryTool.name,arguments:{reference,url:record.url,public_id:record.public_id}}})}]}));
+}
 return res.status(200).json(reply(id,{content:[{type:'text',text:JSON.stringify({status:'published',...record})}]}));
 }catch(e){return res.status(200).json(reply(id,{isError:true,content:[{type:'text',text:'No se confirmó la publicación: '+e.message}]}))}
 }
