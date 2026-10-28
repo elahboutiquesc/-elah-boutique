@@ -148,7 +148,9 @@ async function syncInventory(){
   }
   // Retain historical metadata without offering unverified inventory for sale.
   for(const x of data)if(!inv.has(x.r))x.inventoryVerified=false;
-  if(categoryConfig(activeCategory))showCategory(activeCategory,false);else renderProducts();draw();
+  // Update inventory in memory without rebuilding the visible product grid every 30 seconds.
+  // Rebuilding the grid causes Safari to jump while a customer is browsing.
+  if(!window.elahInventoryRendered){window.elahInventoryRendered=true;if(categoryConfig(activeCategory))showCategory(activeCategory,false);else renderProducts();draw();}
  }catch(e){console.error('ELAH inventario:',e)}
 }
 function openProfile(){authModal.classList.add('show');refreshAuthUI()}function closeProfile(){authModal.classList.remove('show')}function authMode(m){authModeNow=m;registerFields.style.display=m==='register'?'block':'none';authMsg.textContent=''}
