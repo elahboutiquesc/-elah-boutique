@@ -36,7 +36,11 @@ export default async function handler(req,res) {
    const stored=await browserRequest(req.query.request_id,cookie(req));return res.json({approved:stored.value.status==='approved'});
   }
   if(req.method==='POST'&&action==='complete'){
-   if(req.headers.origin!==ISSUER)return res.status(403).json({error:'access_denied'});
+   const origin=req.headers.origin;
+   const referer=req.headers.referer;
+   let sameSite=origin===ISSUER;
+   if(!origin && referer){try{sameSite=new URL(referer).origin===ISSUER;}catch{sameSite=false;}}
+   if(!sameSite)return res.status(403).json({error:'access_denied'});
    const redirect=await finishAuthorization(fields(req.body).request_id,cookie(req));
    res.setHeader('Set-Cookie','__Host-elah_oauth=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0');
    res.setHeader('Location',redirect);return res.status(303).end();
