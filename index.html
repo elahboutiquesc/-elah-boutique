@@ -126,10 +126,17 @@ async function syncInventory(){
    let x=existing.get(ref);
    if(!x){x={id:nextId++,r:ref};data.push(x);existing.set(ref,x);}
    x.inventoryVerified=true;
-   x.n=v.descripcion;x.s=v.talla;
-   x.p=Number(v.precioUSD)||0;
-   x.cop=Number(v.precioCOP)||0;
-   if(x.cop>0&&x.cop<1000)x.cop*=1000;
+   // Never overwrite a known product's description, size or price with a
+   // mismatched inventory row. Stock remains sourced from the master sheet.
+   const inventoryName=String(v.descripcion||'').trim();
+   const catalogName=String(x.n||'').trim();
+   const mismatched=Boolean(catalogName&&inventoryName&&catalogName.toLocaleLowerCase('es')!==inventoryName.toLocaleLowerCase('es'));
+   if(!mismatched){
+    x.n=v.descripcion;x.s=v.talla;
+    x.p=Number(v.precioUSD)||0;
+    x.cop=Number(v.precioCOP)||0;
+    if(x.cop>0&&x.cop<1000)x.cop*=1000;
+   }else console.warn('ELAH: inventario desalineado; metadatos conservados para',ref);
    x.stock=Number(v.stock)||0;
    x.estado=String(v.estado||'').trim().toUpperCase();
    x.img='/api/product-image?ref='+encodeURIComponent(ref);
