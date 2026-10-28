@@ -1,5 +1,5 @@
 import {approvalPage} from '../lib/approval-page.js';
-import {authorizationMetadata,resourceMetadata,startAuthorization,browserRequest,finishAuthorization,exchangeToken,revokeToken,approveAuthorization,ISSUER,random} from '../lib/oauth.js';
+import {authorizationMetadata,resourceMetadata,startAuthorization,browserRequest,finishAuthorization,exchangeToken,revokeToken,approveAuthorization,approveWithAdminSecret,ISSUER,random} from '../lib/oauth.js';
 export const config={api:{bodyParser:{sizeLimit:'32kb'}}};
 
 function cookie(req) {
@@ -30,7 +30,15 @@ export default async function handler(req,res) {
    res.setHeader('Set-Cookie',`__Host-elah_oauth=${started.session}; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=600`);
    const nonce=random();res.setHeader('Content-Security-Policy',`default-src 'none'; script-src 'nonce-${nonce}'; connect-src 'self'; form-action 'self' https://chatgpt.com; base-uri 'none'; frame-ancestors 'none'`);
    res.setHeader('Content-Type','text/html; charset=utf-8');
-   return res.status(200).end(approvalPage({id:started.id,title:'Conectar '+started.client_name+' con ELAH Boutique',nonce,statusPath:'/oauth/status',completePath:'/oauth/complete'}));
+   return res.status(200).end(`<!doctype html><html lang="es"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Autorizar ELAH Boutique</title><style>body{font:16px system-ui;max-width:480px;margin:12vh auto;padding:20px;color:#2e2e2e}button{background:#c96a4a;color:white;border:0;padding:14px;border-radius:8px}input{padding:12px;width:95%;margin:10px 0}</style><h1>Conectar ChatGPT con ELAH Boutique</h1><p>Autoriza la publicación de fotografías en referencias existentes. No modifica inventario.</p><form method="post" action="/oauth/consent"><input type="hidden" name="request_id" value="${started.id}"><label>Clave administrativa de ELAH (no es tu contraseña de ChatGPT)<input name="admin_secret" type="password" required autocomplete="off"></label><button type="submit">Autorizar conexión</button></form><p>La autorización caduca en diez minutos. La clave se comprueba en el servidor y no se almacena.</p></html>`);
+  }
+  if(req.method==='POST'&&action==='consent'){
+   if(req.headers.origin!==ISSUER)return res.status(403).json({error:'access_denied'});
+   const body=fields(req.body);
+   await approveWithAdminSecret(body.request_id,cookie(req),body.admin_secret);
+   const redirect=await finishAuthorization(body.request_id,cookie(req));
+   res.setHeader('Set-Cookie','__Host-elah_oauth=; Path=/; Secure; HttpOnly; SameSite=Lax; Max-Age=0');
+   res.setHeader('Location',redirect);return res.status(303).end();
   }
   if(req.method==='GET'&&action==='status'){
    const stored=await browserRequest(req.query.request_id,cookie(req));return res.json({approved:stored.value.status==='approved'});
