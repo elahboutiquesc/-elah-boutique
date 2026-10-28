@@ -108,3 +108,9 @@ test('authorization CSP permits the ChatGPT redirect after form completion',asyn
  const r=response();await endpoint({method:'GET',headers:{},query:{action:'authorize',...query()}},r);
  assert.ok(r.headers['Content-Security-Policy'].includes("form-action 'self' https://chatgpt.com;"));
 });
+
+test('authorization page preserves same-origin POST provenance without leaking callback referrers',async()=>{
+ const client=oauth.registerClient({redirect_uris:['https://chatgpt.com/connector_platform_oauth_redirect']});
+ const r=response();await endpoint({method:'GET',headers:{},query:{action:'authorize',client_id:client.client_id,redirect_uri:client.redirect_uris[0],response_type:'code',code_challenge_method:'S256',code_challenge:oauth.hash('a'.repeat(43)),resource:oauth.RESOURCE,scope:oauth.SCOPE,state:'browser-policy-test'}},r);
+ assert.equal(r.code,200);assert.equal(r.headers['Referrer-Policy'],'same-origin');
+});

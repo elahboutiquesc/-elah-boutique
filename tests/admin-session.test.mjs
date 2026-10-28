@@ -60,7 +60,7 @@ test('MCP never accepts the browser cookie in place of OAuth',async()=>{
  const {token}=await session(),r=response();await mcp({method:'POST',headers:{cookie:cookie(token)},body:{jsonrpc:'2.0',id:1,method:'tools/list'}},r);assert.equal(r.code,401);assert.match(r.headers['WWW-Authenticate'],/resource_metadata/);
 });
 test('login and session responses never expose server credentials or browser authentication tokens to JS',async()=>{
- let r=response();await endpoint({method:'GET',headers:{},query:{action:'login'}},r);assert.equal(r.code,200);assert.match(r.headers['Set-Cookie'],/Secure; HttpOnly/);assert.ok(!r.html.includes(process.env.ELAH_ADMIN_TOKEN));
+ let r=response();await endpoint({method:'GET',headers:{},query:{action:'login'}},r);assert.equal(r.code,200);assert.equal(r.headers['Referrer-Policy'],'same-origin');assert.match(r.headers['Set-Cookie'],/Secure; HttpOnly/);assert.ok(!r.html.includes(process.env.ELAH_ADMIN_TOKEN));
  const {token}=await session();r=response();await endpoint({method:'GET',headers:{cookie:cookie(token)},query:{action:'session'}},r);assert.equal(r.data.authenticated,true);assert.ok(r.data.csrf);assert.ok(!JSON.stringify(r.data).includes(token));assert.equal(r.headers['Cache-Control'],'no-store');assert.equal(r.headers['Access-Control-Allow-Origin'],undefined);
  r=response();await endpoint({method:'POST',headers:{origin:'https://evil.test'},query:{action:'complete'},body:{}},r);assert.equal(r.code,403);
 });

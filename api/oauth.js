@@ -12,7 +12,7 @@ function fields(body) {
  return data;
 }
 export default async function handler(req,res) {
- res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Content-Type-Options','nosniff');
+ res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','same-origin');res.setHeader('X-Content-Type-Options','nosniff');
  const action=req.query?.action;
  if(['resource','metadata','register','token','revoke'].includes(action))res.setHeader('Access-Control-Allow-Origin','*');
  if(req.method==='OPTIONS'&&['resource','metadata','register','token','revoke'].includes(action)){

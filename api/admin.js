@@ -3,7 +3,7 @@ import {browserRequest,ISSUER,random} from '../lib/oauth.js';
 import {approvalPage} from '../lib/approval-page.js';
 export const config={api:{bodyParser:{sizeLimit:'8kb'}}};
 export default async function handler(req,res) {
- res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Content-Type-Options','nosniff');
+ res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','same-origin');res.setHeader('X-Content-Type-Options','nosniff');
  const action=req.query?.action;
  try{
   if(req.method==='GET'&&action==='login'){
