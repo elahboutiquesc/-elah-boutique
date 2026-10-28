@@ -1,3 +1,4 @@
+import {validImageUrl, validPublicId, referencePattern} from '../lib/image-record.js';
 import {validateAccess,challenge,SCOPE} from '../lib/oauth.js';
 import { readAttachedImage, validAttachment } from '../lib/attached-image.js';
 import { requireExistingReference } from '../lib/existing-reference.js';
@@ -49,7 +50,7 @@ res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type, MCP-P
 if(req.method==='OPTIONS')return res.status(204).end();
 let authorized=validKey(req);
 if(!authorized){
- try{authorized=Boolean(await validateAccess(String(req.headers.authorization||'').match(/^Bearer (\\S+)$/i)?.[1]));}
+ try{authorized=Boolean(await validateAccess(String(req.headers.authorization||'').match(/^Bearer (\S+)$/i)?.[1]));}
  catch{return res.status(503).json({error:'Autorización no disponible'});}
 }
 if(!authorized){challenge(res);return res.status(401).json({error:'Autorización MCP requerida'});}
@@ -71,7 +72,7 @@ if(params?.name!==tool.name)return res.status(200).json(error(id,-32602,'Unknown
 const {reference,image_base64,mime_type,file}=params.arguments||{};
 const attached=file!==undefined;
 const validInput=attached ? validAttachment(file)&&image_base64===undefined&&mime_type===undefined : /^image\/(jpeg|png|webp)$/.test(mime_type||'')&&typeof image_base64==='string'&&image_base64.length<=4_700_000&&/^[A-Za-z0-9+/=]+$/.test(image_base64);
-if(!/^ELAH-[A-Z]{2,3}[0-9]{3,}$/.test(reference||'')||!validInput)return res.status(200).json(reply(id,{isError:true,content:[{type:'text',text:'Adjunta una fotografía JPG, PNG o WebP y una referencia existente; máximo 3,5 MB. No combines adjunto y base64.'}]}));
+if(!referencePattern.test(reference||'')||!validInput)return res.status(200).json(reply(id,{isError:true,content:[{type:'text',text:'Adjunta una fotografía JPG, PNG o WebP y una referencia existente; máximo 3,5 MB. No combines adjunto y base64.'}]}));
 try{
 await requireExistingReference(reference);
 const token=process.env.BLOB_READ_WRITE_TOKEN;
@@ -84,7 +85,7 @@ const image=attached ? await readAttachedImage(file) : {base64:image_base64,mime
 const form=new FormData();form.append('file','data:'+image.mimeType+';base64,'+image.base64);form.append('upload_preset','elah_catalogo');form.append('public_id',reference);form.append('context','reference='+reference);
 const cloud=await fetch('https://api.cloudinary.com/v1_1/bl7tzrfk/image/upload',{method:'POST',body:form});
 const uploaded=await cloud.json();if(!cloud.ok||!uploaded.secure_url)throw Error('Cloudinary: '+(uploaded.error?.message||cloud.status));
-if(![reference,'elah_catalogo/'+reference].includes(uploaded.public_id))throw Error('Cloudinary devolvió una referencia diferente');
+if(!validPublicId(uploaded.public_id,reference)||!validImageUrl(uploaded.secure_url,reference))throw Error('Cloudinary devolvió una referencia diferente');
 const record={reference,url:uploaded.secure_url,public_id:uploaded.public_id,updatedAt:new Date().toISOString()};
 try{
 await put('image-registry/'+reference+'.json',JSON.stringify(record),{access:'private',contentType:'application/json',addRandomSuffix:false,allowOverwrite:true,token});
@@ -93,6 +94,6 @@ await put('image-registry/'+reference+'.json',JSON.stringify(record),{access:'pr
 // caller so a retry only writes the same registry key, never uploads again.
 return res.status(200).json(reply(id,{isError:true,content:[{type:'text',text:JSON.stringify({status:'registration_pending',...record,recovery:{tool:recoveryTool.name,arguments:{reference,url:record.url,public_id:record.public_id}}})}]}));
 }
-return res.status(200).json(reply(id,{content:[{type:'text',text:JSON.stringify({status:'published',...record})}]}));
+return res.status(200).json(reply(id,{content:[{type:'text',text:JSON.stringify({status:uploaded.existing?'existing':'published',existing:Boolean(uploaded.existing),...record})}]}));
 }catch(e){return res.status(200).json(reply(id,{isError:true,content:[{type:'text',text:'No se confirmó la publicación: '+e.message}]}))}
 }

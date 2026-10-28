@@ -1891,5 +1891,16 @@
     "p": 15,
     "cop": 49500,
     "img": "https://res.cloudinary.com/bl7tzrfk/image/upload/ELAH-BL098.jpg"
+  },
+  {
+    "id": 1546,
+    "r": "ELAH-AC044",
+    "n": "Zarcillos dorados de aro escultórico",
+    "s": "Única",
+    "p": 2.42,
+    "cop": 8000,
+    "stock": 1,
+    "estado": "DISPONIBLE",
+    "img": "https://res.cloudinary.com/bl7tzrfk/image/upload/elah_catalogo/ELAH-AC044"
   }
 ]

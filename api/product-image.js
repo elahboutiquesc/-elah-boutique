@@ -1,3 +1,4 @@
+import {validImageUrl, validPublicId, referencePattern} from '../lib/image-record.js';
 import catalog from '../productos.json' with { type: 'json' };
 import inventoryHandler from './inventory.js';
 import { get } from '@vercel/blob';
@@ -24,11 +25,11 @@ export default async function handler(req,res){
  const token=process.env.BLOB_READ_WRITE_TOKEN;
  if(token){
    try{
-     const record=await get('image-registry/'+ref+'.json',{access:'private',token});
+     const record=await get('image-registry/'+ref+'.json',{access:'private',token,useCache:false});
      if(record?.statusCode===200&&record.stream){
        const data=await new Response(record.stream).json();
        const url=new URL(data.url);
-       if(data.reference===ref&&url.protocol==='https:'&&url.hostname==='res.cloudinary.com'&&url.pathname.startsWith('/bl7tzrfk/image/upload/')&&url.pathname.includes(encodeURIComponent(ref))){
+       if(data.reference===ref&&validImageUrl(data.url,ref)&&validPublicId(data.public_id,ref)){
          res.setHeader('Cache-Control','public, max-age=30, s-maxage=30');
          return res.redirect(307,url.toString());
        }
