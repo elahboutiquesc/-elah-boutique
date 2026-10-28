@@ -133,9 +133,13 @@ async function syncInventory(){
    const mismatched=Boolean(catalogName&&inventoryName&&catalogName.toLocaleLowerCase('es')!==inventoryName.toLocaleLowerCase('es'));
    if(!mismatched){
     x.n=v.descripcion;x.s=v.talla;
-    x.p=Number(v.precioUSD)||0;
-    x.cop=Number(v.precioCOP)||0;
-    if(x.cop>0&&x.cop<1000)x.cop*=1000;
+    // BL022–BL098 prices have been realigned in the catalog. Do not let
+    // the stale spreadsheet overwrite those corrected values on page load.
+    if(!/^ELAH-BL(?:0(?:2[2-9]|[3-9][0-9]))$/.test(ref)){
+     x.p=Number(v.precioUSD)||0;
+     x.cop=Number(v.precioCOP)||0;
+     if(x.cop>0&&x.cop<1000)x.cop*=1000;
+    }
    }else console.warn('ELAH: inventario desalineado; metadatos conservados para',ref);
    x.stock=Number(v.stock)||0;
    x.estado=String(v.estado||'').trim().toUpperCase();
