@@ -1,3 +1,4 @@
+import {randomUUID} from 'node:crypto';
 import {approvalPage} from '../lib/approval-page.js';
 import {authorizationMetadata,resourceMetadata,startAuthorization,browserRequest,finishAuthorization,exchangeToken,revokeToken,approveAuthorization,approveWithAdminSecret,ISSUER,random} from '../lib/oauth.js';
 export const config={api:{bodyParser:{sizeLimit:'32kb'}}};
@@ -14,6 +15,13 @@ function fields(body) {
 export default async function handler(req,res) {
  res.setHeader('Cache-Control','no-store');res.setHeader('Referrer-Policy','same-origin');res.setHeader('X-Content-Type-Options','nosniff');
  const action=req.query?.action;
+ const requestId=randomUUID();
+ const stage=typeof action==='string'&&/^[a-z]{2,20}$/.test(action)?action:'unknown';
+ res.setHeader('X-ELAH-Request-ID',requestId);
+ const started=Date.now();
+ console.info(JSON.stringify({event:'oauth.request',request_id:requestId,stage,method:req.method}));
+ res.on('finish',()=>console.info(JSON.stringify({event:'oauth.response',request_id:requestId,stage,http_status:res.statusCode,duration_ms:Date.now()-started})));
+
  if(['resource','metadata','register','token','revoke'].includes(action))res.setHeader('Access-Control-Allow-Origin','*');
  if(req.method==='OPTIONS'&&['resource','metadata','register','token','revoke'].includes(action)){
   res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET, POST, OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');return res.status(204).end();
@@ -63,5 +71,5 @@ export default async function handler(req,res) {
    await revokeToken(fields(req.body));return res.status(200).end();
   }
   return res.status(405).json({error:'method_not_allowed'});
- }catch(e){return res.status(e.status||503).json({error:e.status?e.message:'temporarily_unavailable'});}
+ }catch(e){const status=Number.isInteger(e.status)?e.status:503;const code=e.status&&typeof e.message==='string'?e.message:'temporarily_unavailable';const safeCode=/^[a-z_]+$/.test(code)?code:'oauth_request_rejected';console.error(JSON.stringify({event:'oauth.error',request_id:requestId,stage,http_status:status,error_code:safeCode,error_description:status===503?'Internal OAuth processing failure':'OAuth request rejected; see error_code'}));return res.status(status).json({error:code});}
 }
