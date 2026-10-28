@@ -1,4 +1,3 @@
-import {validateAccess, challenge, SCOPE} from '../lib/oauth.js';
 import { readAttachedImage, validAttachment } from '../lib/attached-image.js';
 import { requireExistingReference } from '../lib/existing-reference.js';
 // ELAH Boutique: remote MCP connector (Streamable HTTP, JSON-RPC 2.0).
@@ -33,11 +32,11 @@ const tool = {
   additionalProperties: false
  },
  annotations: {readOnlyHint: false, destructiveHint: true, openWorldHint: true},
- securitySchemes: [{type:'oauth2',scopes:[SCOPE]}],
- _meta: {'openai/fileParams': ['file'],securitySchemes:[{type:'oauth2',scopes:[SCOPE]}]}
+ securitySchemes: [{type:'http',scheme:'bearer'}],
+ _meta: {'openai/fileParams': ['file'],securitySchemes:[{type:'http',scheme:'bearer'}]}
 };
 const recoveryTool={name:'recuperar_registro_fotografia',description:'Registra de nuevo una URL ya subida a Cloudinary sin volver a cargar la fotografía ni modificar inventario.',inputSchema:{type:'object',properties:{reference:{type:'string'},url:{type:'string'},public_id:{type:'string'}},required:['reference','url','public_id'],additionalProperties:false}};
-recoveryTool.securitySchemes=[{type:'oauth2',scopes:[SCOPE]}];
+recoveryTool.securitySchemes=[{type:'http',scheme:'bearer'}];
 recoveryTool._meta={securitySchemes:recoveryTool.securitySchemes};
 const reply=(id,result)=>({jsonrpc:'2.0',id,result});
 const error=(id,code,message)=>({jsonrpc:'2.0',id,error:{code,message}});
@@ -47,12 +46,7 @@ export default async function handler(req,res){
 res.setHeader('Cache-Control','no-store');res.setHeader('Access-Control-Allow-Methods','POST, OPTIONS');
 res.setHeader('Access-Control-Allow-Headers','Authorization, Content-Type, MCP-Protocol-Version, MCP-Session-Id');
 if(req.method==='OPTIONS')return res.status(204).end();
-let authorized=validKey(req);
-if(!authorized){
- try{authorized=Boolean(await validateAccess(String(req.headers.authorization||'').match(/^Bearer (\S+)$/i)?.[1]));}
- catch{return res.status(503).json({error:'Autorización no disponible'});}
-}
-if(!authorized){challenge(res);return res.status(401).json({error:'Autorización MCP requerida'});}
+if(!validKey(req))return res.status(401).json({error:'Se requiere token administrativo de ELAH'});
 if(req.method!=='POST')return res.status(405).json({error:'Use POST'});
 const {jsonrpc,id,method,params}=req.body||{};
 if(jsonrpc!=='2.0'||typeof method!=='string')return res.status(400).json(error(id??null,-32600,'Invalid Request'));
