@@ -675,62 +675,6 @@
     "img": "https://elah-assets.floot.app/_cdn/static/8fa66608-a8a8-4cf7-863d-9fc9a2f6ef39-elah-bl091.jpg"
   },
   {
-    "id": 92,
-    "r": "ELAH-BL092",
-    "n": "Top marrón strapless drapeado con hebilla dorada",
-    "s": "XS",
-    "p": 9.6,
-    "cop": 31680,
-    "img": "https://elah-assets.floot.app/_cdn/static/a0922d2e-a48d-4568-87aa-ada56e7aa468-elah-bl092.jpg"
-  },
-  {
-    "id": 93,
-    "r": "ELAH-BL093",
-    "n": "Corset negro de tul con pedrería transparente",
-    "s": "M",
-    "p": 33.6,
-    "cop": 110880,
-    "img": "https://elah-assets.floot.app/_cdn/static/5a271640-3461-4e1c-b7b9-89cbdd0aee69-elah-bl093.jpg"
-  },
-  {
-    "id": 94,
-    "r": "ELAH-BL094",
-    "n": "Corset negro estructurado con escote corazón y botones",
-    "s": "S",
-    "p": 18,
-    "cop": 59400,
-    "img": "https://elah-assets.floot.app/_cdn/static/6fd88f4e-82fa-49bf-837d-724642ed93c0-elah-bl094.jpg"
-  },
-  {
-    "id": 95,
-    "r": "ELAH-BL095",
-    "n": "Blusa corset marrón manga larga con escote cuadrado",
-    "s": "XS",
-    "p": 21.6,
-    "cop": 71280,
-    "img": "https://elah-assets.floot.app/_cdn/static/d6f4953b-b777-4fec-b63d-2faccc38907f-elah-bl095.jpg"
-  },
-  {
-    "id": 96,
-    "r": "ELAH-BL096",
-    "n": "Crop top verde oliva asimétrico en tela rib",
-    "s": "XS",
-    "p": 6,
-    "cop": 19800,
-    "img": "https://elah-assets.floot.app/_cdn/static/04027f14-f24a-44c5-8769-2991c43e6330-elah-bl096.jpg"
-  },
-  {
-    "id": 157,
-    "r": "ELAH-BL097",
-    "n": "Blusa halter crema de lunares marrones",
-    "s": "XS",
-    "p": 20,
-    "cop": 66000,
-    "stock": 1,
-    "estado": "DISPONIBLE",
-    "img": "https://elah-assets.floot.app/_cdn/static/7465fa2a-0f28-4ab4-b7a7-599d15ed4751-elah-bl024-blusa-halter-lunares.png"
-  },
-  {
     "id": 97,
     "r": "ELAH-JN001",
     "n": "Jeans Most Wanted Cargo negro",
@@ -1873,15 +1817,6 @@
     "cop": 15000,
     "estado": "DISPONIBLE",
     "img": "/api/product-image?ref=ELAH-AC043"
-  },
-  {
-    "id": 1545,
-    "r": "ELAH-BL098",
-    "n": "Body crema de manga larga con drapeado asimétrico",
-    "s": "Por confirmar",
-    "p": 20,
-    "cop": 66000,
-    "img": "https://res.cloudinary.com/bl7tzrfk/image/upload/ELAH-BL098.jpg"
   },
   {
     "id": 1546,
