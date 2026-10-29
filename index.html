@@ -274,7 +274,7 @@ async function syncInventory(){
    if(ref.startsWith('ELAH-BL')){
     const usd=Number(v.precioUSD),cop=Number(v.precioCOP);
     if(Number.isFinite(usd)&&usd>=0)x.p=usd;
-    if(Number.isFinite(cop)&&cop>=0)x.cop=cop;
+    if(Number.isFinite(cop)&&cop>=0)x.cop=cop>0&&cop<1000?Math.round(cop*1000):cop;
    }
    x.stock=Number(v.stock)||0;
    x.estado=String(v.estado||'').trim().toUpperCase();
