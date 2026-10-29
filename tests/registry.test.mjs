@@ -41,7 +41,7 @@ test('MCP retains recovery data after Blob failure; retry registers and displays
  let src='old';const image={getAttribute:()=>src,set src(v){src=v;}};
  const card={querySelector:s=>s==='.ref'?{textContent:ref}:image};
  const data=[{r:ref,img:'old',stock:7}];const source=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
- const ctx={data,elahImageByRef:new Map(),document:{querySelectorAll:()=>[card]},fetch:async()=>({ok:true,json:async()=>loaded.data})};vm.createContext(ctx);
+ const ctx={data,elahImageByRef:new Map(),document:{querySelectorAll:()=>[card]},fetch:async url=>({ok:true,json:async()=>url.includes('ref=ALL')?{references:[ref]}:loaded.data})};vm.createContext(ctx);
  vm.runInContext(source.slice(source.indexOf('function elahResolveImages('),source.indexOf('const elahObserver='))+source.slice(source.indexOf('async function elahLoadSharedImages(){'),source.indexOf('\nelahLoadSharedImages();')),ctx);
  await ctx.elahLoadSharedImages();assert.equal(src,url);assert.equal(data.length,1);assert.equal(data[0].stock,7);
 });
