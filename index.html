@@ -4,10 +4,50 @@
 (()=>{
  history.scrollRestoration='auto';
  if(performance.getEntriesByType('navigation')[0]?.type!=='reload')return;
+ const path=location.pathname+location.search;
+ let view,position;
  try{
-  const view=JSON.parse(sessionStorage.getItem('elahCatalogView')||'null');
-  if(view&&view.path===location.pathname+location.search)window.elahReloadView=view;
- }catch{}
+  view=JSON.parse(sessionStorage.getItem('elahCatalogView')||'null');
+  if(view?.path===path)window.elahReloadView=view;
+  position=JSON.parse(sessionStorage.getItem('elahCatalogScroll')||'null');
+  if(position?.path!==path)position=view?.path===path?view.position:null;
+ }catch{return;}
+ if(!position||!Number.isFinite(position.x)||!Number.isFinite(position.y))return;
+ const target={x:Math.max(0,position.x),y:Math.max(0,position.y)};
+ const hash=location.hash;
+ history.scrollRestoration='manual';
+ if(hash)history.replaceState(history.state,'',path);
+ window.elahRestoringPosition=true;
+ window.elahRestoreTarget=target;
+ let stopped=false,timer,observer;
+ const restore=()=>{
+  if(stopped)return;
+  const style=document.documentElement.style,previous=style.scrollBehavior;
+  style.scrollBehavior='auto';
+  scrollTo(target.x,target.y);
+  style.scrollBehavior=previous;
+ };
+ const stop=()=>{
+  if(stopped)return;
+  stopped=true;clearTimeout(timer);observer?.disconnect();
+  window.elahRestoringPosition=false;
+  history.scrollRestoration='auto';
+  if(hash&&!location.hash)history.replaceState(history.state,'',path+hash);
+  for(const type of ['wheel','touchstart','pointerdown','keydown','click','hashchange'])removeEventListener(type,stop);
+ };
+ for(const type of ['wheel','touchstart','pointerdown','keydown','click','hashchange'])addEventListener(type,stop,{once:true,passive:true});
+ window.elahRestoreViewport=restore;
+ const ready=()=>{
+  restore();
+  if(typeof ResizeObserver!=='undefined'){
+   observer=new ResizeObserver(()=>requestAnimationFrame(restore));
+   observer.observe(document.body);
+  }
+  timer=setTimeout(stop,5000);
+ };
+ addEventListener('DOMContentLoaded',ready,{once:true});
+ addEventListener('pageshow',()=>{restore();if(hash&&!location.hash)history.replaceState(history.state,'',path+hash);requestAnimationFrame(restore);},{once:true});
+ window.elahInventoryPositionReady=()=>{restore();};
 })();
 </script>
 <style>
@@ -213,11 +253,21 @@ elahObserver.observe(document.body,{childList:true,subtree:true});
 elahResolveImages();
 async function elahLoadSharedImages(){const refs=[...new Set(data.map(p=>p.r))];const batch=12;for(let i=0;i<refs.length;i+=batch){await Promise.all(refs.slice(i,i+batch).map(async ref=>{try{const response=await fetch('/api/image-registry?ref='+encodeURIComponent(ref));if(!response.ok)return;const record=await response.json();if(record.reference!==ref||!/^https:\/\/res\.cloudinary\.com\/bl7tzrfk\/image\/upload\//.test(record.url))return;elahImageByRef.set(ref,record.url);const product=data.find(p=>p.r===ref);if(product)product.img=record.url;elahResolveImages()}catch{}}))}}
 elahLoadSharedImages();
-/* Preserve each product's stored Cloudinary or catalog image URL. Do not overwrite every image with the product-image proxy. */function rememberCatalogView(){
+/* Preserve each product's stored Cloudinary or catalog image URL. Do not overwrite every image with the product-image proxy. */function rememberCatalogScroll(){
+ const position=window.elahRestoringPosition?window.elahRestoreTarget:{x:window.scrollX,y:window.scrollY};
+ try{sessionStorage.setItem('elahCatalogScroll',JSON.stringify({path:location.pathname+location.search,...position}));}catch{}
+ return position;
+}
+let elahScrollFrame;
+addEventListener('scroll',()=>{
+ if(window.elahRestoringPosition||elahScrollFrame)return;
+ elahScrollFrame=requestAnimationFrame(()=>{elahScrollFrame=0;rememberCatalogScroll();});
+},{passive:true});
+function rememberCatalogView(){
  try{
   const refs=[...document.querySelectorAll('#products article .ref')].map(el=>el.textContent.trim());
   sessionStorage.setItem('elahCatalogView',JSON.stringify({
-   path:location.pathname+location.search,category:activeCategory,subcategory:activeAccessorySub,
+   path:location.pathname+location.search,position:rememberCatalogScroll(),category:activeCategory,subcategory:activeAccessorySub,
    search:filterSearch.value,size:filterSize.value,price:filterPrice.value,color:filterColor.value,
    horizontal:products.scrollLeft,items:data.filter(p=>refs.includes(p.r))
   }));
@@ -246,6 +296,6 @@ function restoreCatalogView(){
 }
 addEventListener('pagehide',rememberCatalogView);
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')rememberCatalogView();});
-restoreCatalogView();loadAccount();syncInventory();setInterval(syncInventory,30000);</script></body></html>
+restoreCatalogView();window.elahRestoreViewport?.();loadAccount();syncInventory().finally(()=>window.elahInventoryPositionReady?.());setInterval(syncInventory,30000);</script></body></html>
 <!-- deploy-refresh: inventory-live -->
 
