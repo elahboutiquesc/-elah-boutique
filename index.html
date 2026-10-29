@@ -264,14 +264,18 @@ async function syncInventory(){
    const mismatched=Boolean(catalogName&&inventoryName&&catalogName.toLocaleLowerCase('es')!==inventoryName.toLocaleLowerCase('es'));
    if(!mismatched){
     x.n=v.descripcion;x.s=v.talla;
-    // BL022–BL098 prices have been realigned in the catalog. Do not let
-    // the stale spreadsheet overwrite those corrected values on page load.
-    if(!/^ELAH-BL(?:0(?:2[2-9]|[3-9][0-9]))$/.test(ref)){
+    if(!ref.startsWith('ELAH-BL')){
      x.p=Number(v.precioUSD)||0;
      x.cop=Number(v.precioCOP)||0;
      if(x.cop>0&&x.cop<1000)x.cop*=1000;
     }
    }else console.warn('ELAH: inventario desalineado; metadatos conservados para',ref);
+   // Blouse prices always follow the master reference, independently of description wording.
+   if(ref.startsWith('ELAH-BL')){
+    const usd=Number(v.precioUSD),cop=Number(v.precioCOP);
+    if(Number.isFinite(usd)&&usd>=0)x.p=usd;
+    if(Number.isFinite(cop)&&cop>=0)x.cop=cop;
+   }
    x.stock=Number(v.stock)||0;
    x.estado=String(v.estado||'').trim().toUpperCase();
    x.img='/api/product-image?ref='+encodeURIComponent(ref);
