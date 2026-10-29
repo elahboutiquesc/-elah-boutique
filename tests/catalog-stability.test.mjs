@@ -15,6 +15,12 @@ test('first and repeated inventory responses update existing cards without reset
  await ctx.syncInventory();assert.equal(button.disabled,true);assert.equal(name.textContent,'Zarcillos dorados');assert.equal(price.textContent,'8000');assert.equal(size.textContent,'Talla Única');
  stock=1;await ctx.syncInventory();assert.equal(button.disabled,false);assert.equal(button.textContent,'🛒');assert.equal(ctx.window.scrollY,700);assert.equal(ctx.filterSearch.value,'ELAH-AC044');assert.equal(ctx.filterSize.value,'Única');assert.equal(ctx.data[0],product);
 });
+test('accessory subcategories use inventory classification, including products named Aros',()=>{
+ const ctx={data:[{r:'ELAH-AC050',n:'Aros dorados con bolitas',category:'Accesorios - Zarcillos'},{r:'ELAH-AC051',n:'Modelo nuevo',category:'Accesorios - Zarcillos'},{r:'ELAH-AC020',n:'Lentes con cristales claros',category:'Accesorios - Lentes'},{r:'ELAH-AC052',n:'Aros dorados'}],activeCategory:'accesorios',activeAccessorySub:'zarcillos',categoryConfig:()=>({prefix:'ELAH-AC'}),filterSearch:{value:''},filterSize:{value:''},filterPrice:{value:''},filterColor:{value:''}};
+ vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('function filteredCategoryProducts(){'),source.indexOf('function applyCategoryFilters(){')),ctx);
+ assert.deepEqual(Array.from(ctx.filteredCategoryProducts(),p=>p.r),['ELAH-AC050','ELAH-AC051','ELAH-AC052']);
+ ctx.activeAccessorySub='lentes';assert.deepEqual(Array.from(ctx.filteredCategoryProducts(),p=>p.r),['ELAH-AC020']);
+});
 test('new matching inventory cards appear once without replacing existing cards or clearing filters',()=>{
  const cards=[];
  const card=ref=>({isConnected:true,querySelector:()=>({textContent:ref}),getBoundingClientRect:()=>({top:100,bottom:400}),remove(){cards.splice(cards.indexOf(this),1);this.isConnected=false;}});
