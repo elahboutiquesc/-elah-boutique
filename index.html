@@ -253,7 +253,7 @@ async function syncInventory(){
   let nextId=Math.max(0,...data.map(x=>Number(x.id)||0))+1;
   for(const [ref,v] of inv){
    let x=existing.get(ref);
-   if(ref==='ELAH-BL021'||(/^ELAH-BL\d+$/.test(ref)&&Number(ref.slice(-3))>95&&ref!=='ELAH-BL099'))continue;
+   if(ref==='ELAH-BL021'||(/^ELAH-BL\d+$/.test(ref)&&Number(ref.slice(-3))>95&&ref!=='ELAH-BL099'&&ref!=='ELAH-BL098'))continue;
    if(!x){x={id:nextId++,r:ref};data.push(x);existing.set(ref,x);}
    x.inventoryVerified=true;
    x.category=String(v.categoria||'').trim();
