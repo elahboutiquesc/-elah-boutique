@@ -2,19 +2,25 @@ import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const source=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8').match(/<script id="elah-reload-position">([\s\S]*?)<\/script>/)[1];
-function boot(type){
- const events=new Map(),calls=[];
- const ctx={performance:{getEntriesByType:()=>[{type}]},history:{scrollRestoration:'auto',state:{cart:1},replaceState:(...args)=>calls.push(['replace',...args])},location:{hash:'#tienda',pathname:'/',search:'?source=test'},document:{documentElement:{style:{scrollBehavior:'smooth'}}},scrollTo:(...args)=>calls.push(['scroll',...args]),addEventListener:(name,fn)=>events.set(name,fn),requestAnimationFrame:fn=>fn()};
- vm.runInNewContext(source,ctx);return {ctx,events,calls};
+const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+const source=html.match(/<script id="elah-reload-position">([\s\S]*?)<\/script>/)[1];
+function boot(type,value){
+ const ctx={performance:{getEntriesByType:()=>[{type}]},history:{scrollRestoration:'manual'},location:{pathname:'/',search:''},window:{},sessionStorage:{getItem:()=>value}};
+ vm.runInNewContext(source,ctx);return ctx;
 }
-test('reload clears the old collection fragment before restoration and returns to the top',()=>{
- const {ctx,events,calls}=boot('reload');assert.equal(ctx.history.scrollRestoration,'manual');assert.equal(calls[0][3],'/?source=test');assert.deepEqual(calls[1],['scroll',0,0]);
- events.get('pageshow')({persisted:false});assert.equal(calls.filter(c=>c[0]==='scroll').length,2);assert.equal(ctx.history.scrollRestoration,'auto');assert.equal(ctx.document.documentElement.style.scrollBehavior,'smooth');
+test('reload keeps native scroll restoration and restores the matching saved catalog view',()=>{
+ const ctx=boot('reload',JSON.stringify({path:'/',category:'accesorios',subcategory:'zarcillos',search:'dorados'}));
+ assert.equal(ctx.history.scrollRestoration,'auto');assert.equal(ctx.window.elahReloadView.category,'accesorios');assert.equal(ctx.window.elahReloadView.search,'dorados');
 });
-test('fresh links and back/forward navigation keep their native scroll behavior',()=>{
- for(const type of ['navigate','back_forward']){const {ctx,calls,events}=boot(type);assert.equal(calls.length,0);assert.equal(events.size,0);assert.equal(ctx.history.scrollRestoration,'auto');}
+test('fresh and back/forward navigation ignore stale reload state',()=>{
+ for(const type of ['navigate','back_forward'])assert.equal(boot(type,'{"path":"/"}').window.elahReloadView,undefined);
 });
-test('late load never pulls the page away from a user who has already started browsing',()=>{
- const {events,calls}=boot('reload');events.get('touchstart')();events.get('pageshow')({persisted:false});assert.equal(calls.filter(c=>c[0]==='scroll').length,1);
+test('missing, damaged or unrelated saved state does not break navigation',()=>{
+ for(const value of [null,'invalid','{"path":"/other"}'])assert.equal(boot('reload',value).window.elahReloadView,undefined);
+});
+test('view restoration preserves filters and hydrates new Sheets-only products without duplicate references',()=>{
+ const view={category:'accesorios',subcategory:'zarcillos',search:'ELAH-AC047',size:'Única',price:'',color:'',horizontal:80,items:[{id:4,r:'ELAH-AC047',n:'Zarcillos dorados',s:'Única',p:2,cop:6600}]};
+ const ctx={window:{elahReloadView:view},data:[{id:4,r:'ELAH-AC044'}],activeCategory:'favoritos',cur:'usd',categoryConfig:k=>k==='accesorios',currency(){},showAccessorySub(){},filterSearch:{},filterSize:{},filterPrice:{},filterColor:{},products:{},applyCategoryFilters(){}};
+ vm.createContext(ctx);vm.runInContext(html.slice(html.indexOf('function restoreCatalogView(){'),html.indexOf("addEventListener('pagehide',rememberCatalogView)")),ctx);ctx.restoreCatalogView();
+ assert.equal(ctx.activeCategory,'accesorios');assert.equal(ctx.filterSearch.value,'ELAH-AC047');assert.equal(ctx.filterSize.value,'Única');assert.equal(ctx.products.scrollLeft,80);assert.equal(ctx.data.length,2);assert.notEqual(ctx.data[0].id,ctx.data[1].id);assert.equal(ctx.window.elahReloadView,undefined);
 });
