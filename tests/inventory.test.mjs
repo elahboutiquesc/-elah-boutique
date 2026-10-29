@@ -21,14 +21,14 @@ test('inventory preserves authoritative values and omits malformed references',a
 });
 test('browser synchronization updates stock and prices without duplicating products',async()=>{
  const products=[{r:'ELAH-AC034',stock:9,p:8,cop:20000}];
- const ctx={window:{scrollY:0},data:products,fetch:async()=>({ok:true,json:async()=>({ok:true,productos:[{referencia:'ELAH-AC034',stock:0,precioUSD:3,precioCOP:10000,talla:'M',estado:'AGOTADO'}]})}),categoryConfig:()=>false,activeCategory:'all',renderProducts(){},draw(){},console};
+ const ctx={window:{scrollY:0},data:products,fetch:async()=>({ok:true,json:async()=>({ok:true,productos:[{referencia:'ELAH-AC034',stock:0,precioUSD:3,precioCOP:10000,talla:'M',estado:'AGOTADO'}]})}),categoryConfig:()=>false,activeCategory:'all',renderProducts(){},refreshVisibleCatalog(){},draw(){},console};
  vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('async function syncInventory(){'),source.indexOf('function openProfile()')),ctx);
  await ctx.syncInventory();assert.equal(products.length,1);assert.equal(products[0].stock,0);assert.equal(products[0].p,3);assert.equal(products[0].cop,10000);assert.equal(products[0].estado,'AGOTADO');
 });
 test('Sheets-only references appear once; historical-only references retain metadata but are unverified',async()=>{
  const products=[{id:1,r:'ELAH-AC044',stock:1,p:2.42,cop:8000}];
- const row={referencia:'ELAH-BL021',descripcion:'Top beige',talla:'XS',stock:2,precioUSD:12,precioCOP:39.6,estado:'DISPONIBLE'};
- const ctx={window:{scrollY:0},data:products,fetch:async()=>({ok:true,json:async()=>({ok:true,productos:[row]})}),categoryConfig:()=>false,activeCategory:'all',renderProducts(){},draw(){},console};
+ const row={referencia:'ELAH-AC045',descripcion:'Zarcillos dorados',talla:'XS',stock:2,precioUSD:12,precioCOP:39.6,estado:'DISPONIBLE'};
+ const ctx={window:{scrollY:0},data:products,fetch:async()=>({ok:true,json:async()=>({ok:true,productos:[row]})}),categoryConfig:()=>false,activeCategory:'all',renderProducts(){},refreshVisibleCatalog(){},draw(){},console};
  vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('async function syncInventory(){'),source.indexOf('function openProfile()')),ctx);
  await ctx.syncInventory();await ctx.syncInventory();
  assert.equal(products.length,2);assert.equal(products[0].inventoryVerified,false);assert.equal(products[0].stock,1);
