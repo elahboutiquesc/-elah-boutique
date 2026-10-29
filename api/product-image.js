@@ -2,6 +2,7 @@ import {validImageUrl, validPublicId, referencePattern} from '../lib/image-recor
 import catalog from '../productos.json' with { type: 'json' };
 import inventoryHandler from './inventory.js';
 import { get } from '@vercel/blob';
+import imageOverrides from '../image-overrides.json' with { type: 'json' };
 
 async function inMasterInventory(ref) {
   let status=200, body;
@@ -39,6 +40,10 @@ export default async function handler(req,res){
        }
      }
    }catch{}
+ }
+ const override=imageOverrides[ref];
+ if(override&&validImageUrl(override.url,ref)&&validPublicId(override.public_id,ref)){
+   return deliverImage(req,res,ref,override.url,override.url);
  }
  const cloud='https://res.cloudinary.com/bl7tzrfk/image/upload/'+encodeURIComponent(ref);
  try{
