@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cargar fotografías | ELAH Boutique</title>
+<style>
+:root{font-family:system-ui,-apple-system,sans-serif;color:#2e2e2e;background:#f7efea}*{box-sizing:border-box}
+body{margin:0;padding:30px 14px}.panel{max-width:550px;margin:auto;padding:26px;background:#fff;border-radius:18px;box-shadow:0 8px 35px #5a3e3615}
+h1{font-family:Georgia,serif;color:#a45038;margin:0 0 8px;font-weight:normal}p{line-height:1.5}
+label{display:block;font-weight:600;margin-top:17px;margin-bottom:7px}
+input{display:block;width:100%;border:1px solid #d6c5bc;border-radius:9px;padding:12px;font-size:16px;background:white}
+input[type=file]{padding:14px}button{margin-top:22px;background:#c96a4a;color:white;border:0;border-radius:9px;padding:14px 18px;font-size:16px;font-weight:700;width:100%}
+button:disabled{opacity:.55}#preview{max-width:100%;max-height:310px;object-fit:contain;display:none;margin:18px auto;border-radius:8px}
+#status{white-space:pre-wrap;padding:12px;border-radius:9px;margin-top:15px;display:none;background:#f7efea}
+small{color:#72594d}.back{color:#a45038}.success{color:#176536}.error{color:#a32d21}
+</style></head><body><main class="panel">
+<a class="back" href="/">← Volver al catálogo</a>
+<h1>ELAH Boutique</h1><p><strong>Carga de fotografías</strong><br><small>Solo para administración. No se crean productos nuevos ni se cambian las existencias.</small></p>
+<form id="uploadForm">
+<label for="reference">Referencia existente</label><input id="reference" required maxlength="20" placeholder="ELAH-AC076" pattern="ELAH-[A-Z]{2,5}[0-9]{3,5}" autocomplete="off">
+<label for="secret">Clave administrativa</label><input id="secret" required type="password" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Clave administrativa de ELAH">
+<label for="photo">Fotografía JPG, PNG o WebP (máximo 3,5 MB)</label><input id="photo" required type="file" accept=".jpg,.jpeg,.png,.webp,image/jpeg,image/png,image/webp">
+<img id="preview" alt="Vista previa del artículo seleccionado">
+<button type="submit" id="send">Guardar fotografía en ELAH</button>
+</form><div id="status" role="status" aria-live="polite"></div>
+<p><small>Por seguridad, la clave no se guarda en el navegador. No utilices imágenes convertidas a texto Base64.</small></p></main>
+<script>
+const form=document.querySelector('#uploadForm'),photo=document.querySelector('#photo'),preview=document.querySelector('#preview'),status=document.querySelector('#status'),send=document.querySelector('#send');
+let localUrl;
+const show=(message,good=false)=>{status.style.display='block';status.className=good?'success':'error';status.textContent=message;};
+photo.addEventListener('change',()=>{
+ if(localUrl)URL.revokeObjectURL(localUrl);
+ const file=photo.files[0];preview.style.display='none';
+ if(file){localUrl=URL.createObjectURL(file);preview.src=localUrl;preview.style.display='block';}
+ status.style.display='none';
+});
+form.addEventListener('submit',async e=>{
+ e.preventDefault();
+ const file=photo.files[0],reference=document.querySelector('#reference').value.trim().toUpperCase(),secret=document.querySelector('#secret').value;
+ if(!/^ELAH-[A-Z]{2,5}[0-9]{3,5}$/.test(reference))return show('Introduce una referencia válida, por ejemplo ELAH-AC076.');
+ if(!file||!['image/png','image/jpeg','image/webp'].includes(file.type))return show('Selecciona un JPG, PNG o WebP.');
+ if(file.size>3500000||!file.size)return show('La imagen está vacía o supera 3,5 MB. Reduce su tamaño antes de enviarla.');
+ send.disabled=true;send.textContent='Enviando fotografía…';show('Validando referencia y cargando fotografía…',true);
+ try {
+  const response=await fetch('/api/admin-image-upload?reference='+encodeURIComponent(reference),{
+   method:'POST',headers:{'Authorization':'Bearer '+secret,'Content-Type':file.type},body:file,cache:'no-store'
+  });
+  const result=await response.json();
+  if(!response.ok||!result.ok){
+   show(result.error||'No se pudo guardar la fotografía.'+(response.status?' Código '+response.status:''));
+   return;
+  }
+  show('Fotografía cargada en '+reference+'. Registro actualizado. El inventario no se modificó.',true);
+  document.querySelector('#secret').value='';
+ }catch{show('La solicitud falló por un problema de conexión. Antes de reintentar, comprueba que la imagen no se haya publicado.');}
+ finally{send.disabled=false;send.textContent='Guardar fotografía en ELAH';}
+});
+</script></body></html>
