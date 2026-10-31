@@ -6,7 +6,7 @@ export const config={api:{bodyParser:{sizeLimit:'16kb'}}};
 const path=ref=>'content-overrides/'+ref+'.json';
 const allowed=new Set(['name','description','category']);
 function authorized(req){
- const supplied=String(req.headers.authorization||'').match(/^Bearer (\\S+)$/i)?.[1];
+ const supplied=String(req.headers.authorization||'').match(/^Bearer (\S+)$/i)?.[1];
  const expected=process.env.ELAH_ADMIN_TOKEN;
  if(!supplied||!expected)return false;
  const a=Buffer.from(supplied),b=Buffer.from(expected);
