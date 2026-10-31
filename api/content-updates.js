@@ -1,4 +1,4 @@
-import {get,put} from '@vercel/blob';
+import {get,put,list} from '@vercel/blob';
 import {timingSafeEqual} from 'node:crypto';
 import {referencePattern} from '../lib/image-record.js';
 import {requireExistingReference} from '../lib/existing-reference.js';
@@ -17,6 +17,23 @@ export default async function handler(req,res){
  res.setHeader('X-Content-Type-Options','nosniff');
  if(req.method==='GET'){
   const reference=String(req.query?.reference||'').trim().toUpperCase();
+  if(reference==='ALL'){
+   const token=process.env.BLOB_READ_WRITE_TOKEN;
+   if(!token)return res.status(503).json({ok:false,error:'Registro no disponible'});
+   try{
+    const records=[];let cursor;
+    do {
+     const page=await list({prefix:'content-overrides/',limit:1000,cursor,token});
+     for(const blob of page.blobs){
+      if(!/^content-overrides\/ELAH-[A-Z]{2,5}[0-9]{3,5}\.json$/.test(blob.pathname))continue;
+      const file=await get(blob.pathname,{access:'private',token,useCache:false});
+      if(file?.statusCode===200&&file.stream){const item=await new Response(file.stream).json();if(referencePattern.test(item.reference))records.push(item);}
+     }
+     cursor=page.hasMore?page.cursor:undefined;
+    }while(cursor);
+    return res.status(200).json({ok:true,records});
+   }catch{return res.status(503).json({ok:false,error:'Registro no disponible'});}
+  }
   if(!referencePattern.test(reference))return res.status(400).json({ok:false,error:'Referencia inválida'});
   if(!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({ok:false,error:'Registro no disponible'});
   try{
