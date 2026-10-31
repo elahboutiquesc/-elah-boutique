@@ -81,14 +81,24 @@ const {put,list}=await import('@vercel/blob');
 // A configured token alone does not prove the registry is reachable. This read
 // must succeed before Cloudinary receives any image data; it creates no blobs.
 await list({prefix:'image-registry/',limit:1,token});
+// Never upload a second asset for a reference already registered.
+const {get}=await import('@vercel/blob');
+const existingRecord=await get('image-registry/'+reference+'.json',{access:'private',token,useCache:false});
+if(existingRecord?.statusCode===200&&existingRecord.stream){
+ const old=await new Response(existingRecord.stream).json();
+ if(old.reference===reference&&validImageUrl(old.url,reference)&&validPublicId(old.public_id,reference)){
+  return res.status(200).json(reply(id,{isError:true,content:[{type:'text',text:JSON.stringify({status:'already_registered',reference,url:old.url,message:'La referencia ya tiene una imagen. No se subió otro archivo.'})}]}));
+ }
+ if(existingRecord)throw Error('Registro existente inválido: requiere revisión administrativa');
+}
 const image=attached ? await readAttachedImage(file) : {base64:image_base64,mimeType:mime_type};
-const form=new FormData();form.append('file','data:'+image.mimeType+';base64,'+image.base64);form.append('upload_preset','elah_catalogo');form.append('public_id',reference);form.append('context','reference='+reference);
+const form=new FormData();form.append('file',new Blob([Buffer.from(image.base64,'base64')],{type:image.mimeType}),reference+'.'+(image.mimeType==='image/png'?'png':image.mimeType==='image/webp'?'webp':'jpg'));form.append('upload_preset','elah_catalogo');form.append('public_id',reference);form.append('context','reference='+reference);
 const cloud=await fetch('https://api.cloudinary.com/v1_1/bl7tzrfk/image/upload',{method:'POST',body:form});
 const uploaded=await cloud.json();if(!cloud.ok||!uploaded.secure_url)throw Error('Cloudinary: '+(uploaded.error?.message||cloud.status));
 if(!validPublicId(uploaded.public_id,reference)||!validImageUrl(uploaded.secure_url,reference))throw Error('Cloudinary devolvió una referencia diferente');
 const record={reference,url:uploaded.secure_url,public_id:uploaded.public_id,updatedAt:new Date().toISOString()};
 try{
-await put('image-registry/'+reference+'.json',JSON.stringify(record),{access:'private',contentType:'application/json',addRandomSuffix:false,allowOverwrite:true,token});
+await put('image-registry/'+reference+'.json',JSON.stringify(record),{access:'private',contentType:'application/json',addRandomSuffix:false,allowOverwrite:false,token});
 }catch{
 // The image remains in Cloudinary. Return its recovery data to the authenticated
 // caller so a retry only writes the same registry key, never uploads again.
