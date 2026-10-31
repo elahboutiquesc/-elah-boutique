@@ -283,6 +283,19 @@ async function syncInventory(){
   // Retain historical metadata without offering unverified inventory for sale.
   for(const x of data)if(!inv.has(x.r))x.inventoryVerified=false;
   // Keep the current cards, images, filters and scroll positions intact, including the first response.
+  try {
+   const editorialResponse=await fetch('/api/content-updates?reference=ALL',{cache:'no-store'});
+   if(editorialResponse.ok){
+    const editorial=await editorialResponse.json();
+    for(const row of editorial.records||[]){
+     const product=data.find(item=>item.r===row.reference);
+     if(!product||product.inventoryVerified===false)continue;
+     if(typeof row.changes?.name==='string')product.n=row.changes.name;
+     if(typeof row.changes?.description==='string')product.description=row.changes.description;
+     if(typeof row.changes?.category==='string')product.category=row.changes.category;
+    }
+   }
+  }catch(error){console.warn('ELAH: cambios de contenido no disponibles')}
   refreshVisibleCatalog();
  }catch(e){console.error('ELAH inventario:',e)}
 }
