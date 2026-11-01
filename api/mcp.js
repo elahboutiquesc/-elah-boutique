@@ -93,8 +93,9 @@ if(existingRecord?.statusCode===200&&existingRecord.stream){
 }
 const image=attached ? await readAttachedImage(file) : {base64:image_base64,mimeType:mime_type};
 const form=new FormData();form.append('file',new Blob([Buffer.from(image.base64,'base64')],{type:image.mimeType}),reference+'.'+(image.mimeType==='image/png'?'png':image.mimeType==='image/webp'?'webp':'jpg'));form.append('upload_preset','elah_catalogo');form.append('public_id',reference);form.append('context','reference='+reference);
-const cloud=await fetch('https://api.cloudinary.com/v1_1/bl7tzrfk/image/upload',{method:'POST',body:form});
-const uploaded=await cloud.json();if(!cloud.ok||!uploaded.secure_url)throw Error('Cloudinary: '+(uploaded.error?.message||cloud.status));
+const cloud=await fetch('https://api.cloudinary.com/v1_1/bl7tzrfk/image/upload',{method:'POST',body:form,signal:AbortSignal.timeout(25000)});
+const uploaded=await cloud.json().catch(()=>null);
+if(!cloud.ok||!uploaded?.secure_url)throw Error('Cloudinary rechazó la carga o devolvió una respuesta inválida (HTTP '+cloud.status+')');
 if(!validPublicId(uploaded.public_id,reference)||!validImageUrl(uploaded.secure_url,reference))throw Error('Cloudinary devolvió una referencia diferente');
 const record={reference,url:uploaded.secure_url,public_id:uploaded.public_id,updatedAt:new Date().toISOString()};
 try{
