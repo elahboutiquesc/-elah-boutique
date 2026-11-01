@@ -71,5 +71,5 @@ export default async function handler(req,res) {
    await revokeToken(fields(req.body));return res.status(200).end();
   }
   return res.status(405).json({error:'method_not_allowed'});
- }catch(e){const status=Number.isInteger(e.status)?e.status:503;const code=e.status&&typeof e.message==='string'?e.message:'temporarily_unavailable';const safeCode=/^[a-z_]+$/.test(code)?code:'oauth_request_rejected';console.error(JSON.stringify({event:'oauth.error',request_id:requestId,stage,http_status:status,error_code:safeCode,error_description:status===503?'Internal OAuth processing failure':'OAuth request rejected; see error_code'}));return res.status(status).json({error:code});}
+ }catch(e){const status=Number.isInteger(e.status)?e.status:503;const code=e.status&&typeof e.message==='string'?e.message:'temporarily_unavailable';const safeCode=/^[a-z_]+$/.test(code)?code:'oauth_request_rejected';console.error(JSON.stringify({event:'oauth.error',request_id:requestId,stage,http_status:status,error_code:safeCode,error_description:status===503?'Internal OAuth processing failure':'OAuth request rejected; see error_code',error_type:status===503?String(e?.name||'Error').slice(0,70):undefined}));return res.status(status).json({error:code});}
 }
