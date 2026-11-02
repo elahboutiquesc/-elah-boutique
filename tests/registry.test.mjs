@@ -31,7 +31,7 @@ test('missing record is 404; corrupt JSON and mismatched reference fail closed',
 test('MCP retains recovery data after Blob failure; retry registers and displays without another upload',async()=>{
  const network=mock.method(globalThis,'fetch',async()=>{uploads++;return {ok:true,json:async()=>({secure_url:url,public_id:ref})};});
  let pending;
- try{failWrite=true;const r=await call('publicar_fotografia_en_elah',{reference:ref,image_base64:'YWJj',mime_type:'image/jpeg'});assert.equal(r.isError,true);pending=JSON.parse(r.content[0].text);assert.equal(pending.status,'registration_pending');assert.equal(pending.url,url);assert.equal(uploads,1);
+ try{failWrite=true;const r=await call('publicar_fotografia_en_elah',{reference:ref,image_base64:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=',mime_type:'image/png'});assert.equal(r.isError,true);pending=JSON.parse(r.content[0].text);assert.equal(pending.status,'registration_pending');assert.equal(pending.url,url);assert.equal(uploads,1);
  failWrite=false;const recovered=await call(pending.recovery.tool,pending.recovery.arguments);assert.equal(JSON.parse(recovered.content[0].text).status,'registered');
  await call(pending.recovery.tool,pending.recovery.arguments);assert.equal(records.size,1);assert.equal(uploads,1);
  }finally{network.mock.restore();}
