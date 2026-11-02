@@ -2,6 +2,7 @@ import {validImageUrl, validPublicId, referencePattern} from '../lib/image-recor
 import {validateAccess,challenge,SCOPE} from '../lib/oauth.js';
 import { readAttachedImage, validAttachment } from '../lib/attached-image.js';
 import { requireExistingReference } from '../lib/existing-reference.js';
+import { createProduct } from './product-create.js';
 // ELAH Boutique: remote MCP connector (Streamable HTTP, JSON-RPC 2.0).
 // Uses the existing ELAH_ADMIN_TOKEN and unsigned Cloudinary preset.
 import { timingSafeEqual } from 'node:crypto';
@@ -37,6 +38,21 @@ const tool = {
  securitySchemes: [{type:'oauth2',scopes:[SCOPE]}],
  _meta: {'openai/fileParams': ['file'],securitySchemes:[{type:'oauth2',scopes:[SCOPE]}]}
 };
+const createTool={
+ name:'crear_producto_en_elah',
+ title:'Crear producto en ELAH',
+ description:'Crea una referencia nueva con bloqueo e idempotencia en el inventario maestro. No sube imágenes. Requiere integración de alta de Apps Script verificada.',
+ inputSchema:{type:'object',properties:{
+  category:{type:'string',enum:['Pantalones','Blusas','Accesorios','Chaquetas','Pijamas','Vestidos','Ropa deportiva','Esmaltes','Trajes de baño']},
+  description:{type:'string',minLength:3,maxLength:180},
+  sizes:{type:'array',items:{type:'string'},minItems:1,maxItems:30},
+  priceUSD:{type:'number',minimum:0},
+  requestId:{type:'string',description:'Identificador único y estable de esta operación, reutilizable para reintentos; mínimo 16 caracteres.'}
+ },required:['category','description','sizes','priceUSD','requestId'],additionalProperties:false},
+ annotations:{readOnlyHint:false,destructiveHint:false,openWorldHint:true},
+ securitySchemes:[{type:'oauth2',scopes:[SCOPE]}],
+ _meta:{securitySchemes:[{type:'oauth2',scopes:[SCOPE]}]}
+};
 const recoveryTool={name:'recuperar_registro_fotografia',description:'Registra de nuevo una URL ya subida a Cloudinary sin volver a cargar la fotografía ni modificar inventario.',inputSchema:{type:'object',properties:{reference:{type:'string'},url:{type:'string'},public_id:{type:'string'}},required:['reference','url','public_id'],additionalProperties:false}};
 recoveryTool.securitySchemes=[{type:'oauth2',scopes:[SCOPE]}];
 recoveryTool._meta={securitySchemes:recoveryTool.securitySchemes};
@@ -60,8 +76,16 @@ if(jsonrpc!=='2.0'||typeof method!=='string')return res.status(400).json(error(i
 if(method==='notifications/initialized')return res.status(202).end();
 if(method==='initialize')return res.status(200).json(reply(id,{protocolVersion:'2025-03-26',capabilities:{tools:{}},serverInfo:{name:'elah-boutique',version:'1.0.0'}}));
 if(method==='ping')return res.status(200).json(reply(id,{}));
-if(method==='tools/list')return res.status(200).json(reply(id,{tools:[tool,recoveryTool]}));
+if(method==='tools/list')return res.status(200).json(reply(id,{tools:[tool,recoveryTool,createTool]}));
 if(method!=='tools/call')return res.status(200).json(error(id,-32601,'Method not found'));
+if(params?.name===createTool.name){
+ try {
+  const created=await createProduct(params.arguments||{});
+  return res.status(200).json(reply(id,{content:[{type:'text',text:JSON.stringify({status:'created',...created})}]}));
+ } catch(e) {
+  return res.status(200).json(reply(id,{isError:true,content:[{type:'text',text:JSON.stringify({status:'not_confirmed',message:e.message})}]}));
+ }
+}
 if(params?.name===recoveryTool.name){
 let code=200,record;
 await registryHandler({...req,headers:{...req.headers,authorization:'Bearer '+process.env.ELAH_ADMIN_TOKEN},body:params.arguments||{}},{setHeader(){},status(n){code=n;return this},json(data){record=data;return this}});
