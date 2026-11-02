@@ -17,13 +17,18 @@ jobs:
       - name: Aprobar con la identidad firmada de GitHub
         env:
           REQUEST_ID: ${{ inputs.request_id }}
+          ELAH_PUBLIC_ORIGIN: ${{ vars.ELAH_PUBLIC_ORIGIN }}
         run: |
           python3 - <<'PY'
           import json, os, re, urllib.request, urllib.parse, urllib.error
           request_id = os.environ['REQUEST_ID'].strip()
           if not re.fullmatch(r'[-_A-Za-z0-9]{43}', request_id):
               raise SystemExit('Identificador inválido')
-          audience = 'https://elah-boutique.vercel.app/oauth/approve'
+          origin = os.environ.get('ELAH_PUBLIC_ORIGIN') or 'https://elah-boutique.vercel.app'
+          parsed = urllib.parse.urlsplit(origin)
+          if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password or parsed.path or parsed.query or parsed.fragment:
+              raise SystemExit('Origen ELAH inválido')
+          audience = origin + '/oauth/approve'
           oidc_url = os.environ['ACTIONS_ID_TOKEN_REQUEST_URL'] + '&audience=' + urllib.parse.quote(audience, safe='')
           req = urllib.request.Request(oidc_url, headers={'Authorization': 'Bearer ' + os.environ['ACTIONS_ID_TOKEN_REQUEST_TOKEN']})
           with urllib.request.urlopen(req, timeout=20) as response:

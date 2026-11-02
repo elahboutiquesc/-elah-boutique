@@ -1,7 +1,8 @@
+import {storageAvailable} from '../lib/storage.js';
 import {validImageUrl, validPublicId, referencePattern} from '../lib/image-record.js';
 import catalog from '../productos.json' with { type: 'json' };
 import inventoryHandler from './inventory.js';
-import { get } from '@vercel/blob';
+import { get } from '../lib/storage.js';
 import imageOverrides from '../image-overrides.json' with { type: 'json' };
 
 async function inMasterInventory(ref) {
@@ -29,7 +30,7 @@ export default async function handler(req,res){
  }
  if(!exists)return res.status(404).end();
  const token=process.env.BLOB_READ_WRITE_TOKEN;
- if(token){
+ if(storageAvailable()){
    try{
      const record=await get('image-registry/'+ref+'.json',{access:'private',token,useCache:false});
      if(record?.statusCode===200&&record.stream){

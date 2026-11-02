@@ -1,0 +1,42 @@
+name: Publicar ELAH en Cloudflare
+on:
+  push:
+    branches: [codex/cloudflare-migration]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: elah-cloudflare-production
+  cancel-in-progress: false
+jobs:
+  publicar:
+    if: github.repository == 'elahboutiquesc/-elah-boutique' && (github.ref == 'refs/heads/codex/cloudflare-migration' || github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      WRANGLER_SEND_METRICS: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - run: npm test
+      - run: npm run cloudflare:check
+      - run: npm run cloudflare:test-runtime
+      - name: Publicar únicamente el Worker de ELAH
+        run: npm run cloudflare:deploy -- --keep-vars
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: '15ec841931f6312fb82fdf863bb10d9a'
+      - name: Inicializar acceso administrativo y conservar integraciones
+        run: node scripts/bootstrap-cloudflare-secrets.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: '15ec841931f6312fb82fdf863bb10d9a'
+          ELAH_ADMIN_TOKEN: ${{ secrets.ELAH_ADMIN_TOKEN }}
+          ELAH_APPS_SCRIPT_WRITE_URL: ${{ secrets.ELAH_APPS_SCRIPT_WRITE_URL }}
+          ELAH_APPS_SCRIPT_WRITE_TOKEN: ${{ secrets.ELAH_APPS_SCRIPT_WRITE_TOKEN }}
+      - name: Verificar sitio y D1 sin cargar fotografías ni modificar inventario
+        run: node scripts/verify-cloudflare-production.mjs

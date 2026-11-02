@@ -1,14 +1,15 @@
+import {storageAvailable} from '../lib/storage.js';
 import {validImageUrl, validPublicId, referencePattern} from '../lib/image-record.js';
 import {authorizeAdmin} from '../lib/admin-session.js';
 import { requireExistingReference } from '../lib/existing-reference.js';
-import { put, list } from '@vercel/blob';
+import { put, list } from '../lib/storage.js';
 export const config={api:{bodyParser:{sizeLimit:'6mb'}}};
 
 export default async function handler(req,res){
 res.setHeader('Cache-Control','no-store');
 if(req.method!=='POST')return res.status(405).json({error:'Método no permitido'});
 try{if(!await authorizeAdmin(req))return res.status(401).json({error:'Acceso administrativo requerido'});}catch(e){return res.status(e.status||503).json({error:e.status?'Acceso denegado':'Autorización no disponible'});}
-if(!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({error:'Almacenamiento sin conexión'});
+if(!storageAvailable())return res.status(503).json({error:'Almacenamiento sin conexión'});
 const {reference,image,mime}=req.body||{};const ref=String(reference||'').toUpperCase().trim();
 if(!referencePattern.test(ref)||!/^image\/(jpeg|png|webp)$/.test(mime||'')||typeof image!=='string'||image.length>7_000_000||!/^[A-Za-z0-9+/=]+$/.test(image))return res.status(400).json({error:'Referencia o imagen inválida'});
 try{

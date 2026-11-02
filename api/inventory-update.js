@@ -1,3 +1,4 @@
+import {ISSUER} from '../lib/oauth.js';
 import {timingSafeEqual} from 'node:crypto';
 import {referencePattern} from '../lib/image-record.js';
 
@@ -14,7 +15,7 @@ export default async function handler(req,res){
  res.setHeader('X-Content-Type-Options','nosniff');
  if(req.method!=='PATCH'){res.setHeader('Allow','PATCH');return res.status(405).json({ok:false,error:'Use PATCH'});}
  if(!authorized(req))return res.status(401).json({ok:false,error:'Unauthorized'});
- if(req.headers.origin&&req.headers.origin!=='https://elah-boutique.vercel.app')return res.status(403).json({ok:false,error:'Origin not permitted'});
+ if(req.headers.origin&&req.headers.origin!==ISSUER)return res.status(403).json({ok:false,error:'Origin not permitted'});
  const reference=String(req.body?.reference||'').trim().toUpperCase();
  const changes=req.body?.changes;
  if(!referencePattern.test(reference)||!changes||typeof changes!=='object'||Array.isArray(changes))return res.status(400).json({ok:false,error:'Invalid reference or changes'});

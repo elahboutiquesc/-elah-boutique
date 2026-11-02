@@ -1,4 +1,6 @@
-import {get,put,list} from '@vercel/blob';
+import {ISSUER} from '../lib/oauth.js';
+import {storageAvailable} from '../lib/storage.js';
+import {get,put,list} from '../lib/storage.js';
 import {timingSafeEqual} from 'node:crypto';
 import {referencePattern} from '../lib/image-record.js';
 import {requireExistingReference} from '../lib/existing-reference.js';
@@ -19,13 +21,14 @@ export default async function handler(req,res){
   const reference=String(req.query?.reference||'').trim().toUpperCase();
   if(reference==='ALL'){
    const token=process.env.BLOB_READ_WRITE_TOKEN;
-   if(!token)return res.status(503).json({ok:false,error:'Registro no disponible'});
+   if(!storageAvailable())return res.status(503).json({ok:false,error:'Registro no disponible'});
    try{
     const records=[];let cursor;
     do {
      const page=await list({prefix:'content-overrides/',limit:1000,cursor,token});
      for(const blob of page.blobs){
       if(!/^content-overrides\/ELAH-[A-Z]{2,5}[0-9]{3,5}\.json$/.test(blob.pathname))continue;
+      if(blob.record){if(referencePattern.test(blob.record.reference))records.push(blob.record);continue;}
       const file=await get(blob.pathname,{access:'private',token,useCache:false});
       if(file?.statusCode===200&&file.stream){const item=await new Response(file.stream).json();if(referencePattern.test(item.reference))records.push(item);}
      }
@@ -35,7 +38,7 @@ export default async function handler(req,res){
    }catch{return res.status(503).json({ok:false,error:'Registro no disponible'});}
   }
   if(!referencePattern.test(reference))return res.status(400).json({ok:false,error:'Referencia inválida'});
-  if(!process.env.BLOB_READ_WRITE_TOKEN)return res.status(503).json({ok:false,error:'Registro no disponible'});
+  if(!storageAvailable())return res.status(503).json({ok:false,error:'Registro no disponible'});
   try{
    const saved=await get(path(reference),{access:'private',token:process.env.BLOB_READ_WRITE_TOKEN,useCache:false});
    if(!saved)return res.status(200).json({ok:true,reference,changes:{}});
@@ -46,14 +49,14 @@ export default async function handler(req,res){
  }
  if(req.method!=='PATCH')return res.status(405).json({ok:false,error:'Método no permitido'});
  if(!authorized(req))return res.status(401).json({ok:false,error:'Autorización administrativa requerida'});
- if(req.headers.origin&&req.headers.origin!=='https://elah-boutique.vercel.app')return res.status(403).json({ok:false,error:'Origen no autorizado'});
+ if(req.headers.origin&&req.headers.origin!==ISSUER)return res.status(403).json({ok:false,error:'Origen no autorizado'});
  const reference=String(req.body?.reference||'').trim().toUpperCase();
  const changes=req.body?.changes;
  if(!referencePattern.test(reference)||!changes||typeof changes!=='object'||Array.isArray(changes))return res.status(400).json({ok:false,error:'Referencia o cambios inválidos'});
  const keys=Object.keys(changes);
  if(!keys.length||keys.some(k=>!allowed.has(k))||keys.some(k=>typeof changes[k]!=='string'||!changes[k].trim()||changes[k].length>500))return res.status(400).json({ok:false,error:'Solo se permiten name, description y category; no precios ni existencias'});
  const token=process.env.BLOB_READ_WRITE_TOKEN;
- if(!token)return res.status(503).json({ok:false,error:'Almacenamiento no conectado'});
+ if(!storageAvailable())return res.status(503).json({ok:false,error:'Almacenamiento no conectado'});
  try{
   await requireExistingReference(reference);
   const previous=await get(path(reference),{access:'private',token,useCache:false});
