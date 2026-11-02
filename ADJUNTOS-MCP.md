@@ -29,3 +29,25 @@ Validación: 30 pruebas aprobadas; 10 nuevas comprueban el contrato de descubrim
 descarga, validaciones y recorrido hasta el registro con servicios simulados.
 La prueba con un adjunto real desde la interfaz ChatGPT requiere que el conector
 haya actualizado su lista de herramientas y que el usuario adjunte una fotografía.
+
+
+## Actualización 1.1.0
+
+La herramienta de adjuntos ahora declara `reference` y `file` obligatorios sin
+`oneOf` en el objeto raíz. La carga base64 conserva su herramienta separada y
+la compatibilidad del servidor con llamadas anteriores. Esto elimina la unión
+ambigua que se exponía al cliente; no demuestra por sí solo que una versión
+concreta de ChatGPT entregue el archivo. Tras actualizar las herramientas del
+conector debe verificarse una foto real con URL emitida por el host. Nunca
+inventar `download_url`, `file_id` ni usar la imagen vista como si fueran bytes.
+
+`crear_producto_en_elah` crea una referencia explícita en la pestaña Inventario
+por medio del Apps Script existente. Requiere stock confirmado, además de nombre,
+categoría, talla y precio. La creación usa bloqueo y rechaza referencias ya
+ocupadas; copia la fórmula COP existente. No infiere stock del número de tallas.
+Primero debe actualizarse la implementación del Apps Script con el archivo
+`integrations/apps-script/elah-writes.gs` de esta versión, preservando doGet.
+Las variables de escritura existentes se reutilizan; no hay nuevos secretos.
+La herramienta rechaza respuestas de versiones antiguas del script.
+Crear el producto y subir la foto son pasos independientes: si falla la foto,
+conservar el producto y reintentar únicamente la publicación de la imagen.
