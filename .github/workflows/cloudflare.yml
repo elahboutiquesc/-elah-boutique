@@ -17,6 +17,10 @@ jobs:
       WRANGLER_SEND_METRICS: 'false'
     steps:
       - uses: actions/checkout@v4
+      - name: Validar credencial sin mostrarla
+        run: node scripts/check-cloudflare-token.mjs
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -28,12 +32,10 @@ jobs:
       - name: Publicar únicamente el Worker de ELAH
         run: npm run cloudflare:deploy -- --keep-vars
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: '15ec841931f6312fb82fdf863bb10d9a'
       - name: Inicializar acceso administrativo y conservar integraciones
         run: node scripts/bootstrap-cloudflare-secrets.mjs
         env:
-          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: '15ec841931f6312fb82fdf863bb10d9a'
           ELAH_ADMIN_TOKEN: ${{ secrets.ELAH_ADMIN_TOKEN }}
           ELAH_APPS_SCRIPT_WRITE_URL: ${{ secrets.ELAH_APPS_SCRIPT_WRITE_URL }}
