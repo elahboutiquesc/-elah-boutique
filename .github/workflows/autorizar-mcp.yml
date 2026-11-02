@@ -17,7 +17,7 @@ jobs:
       - name: Aprobar con la identidad firmada de GitHub
         env:
           REQUEST_ID: ${{ inputs.request_id }}
-          ELAH_PUBLIC_ORIGIN: ${{ vars.ELAH_PUBLIC_ORIGIN }}
+          ELAH_PUBLIC_ORIGIN: https://elah-boutique.elahboutique-sc.workers.dev
         run: |
           python3 - <<'PY'
           import json, os, re, urllib.request, urllib.parse, urllib.error

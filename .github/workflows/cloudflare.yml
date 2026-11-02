@@ -44,3 +44,9 @@ jobs:
           ELAH_APPS_SCRIPT_WRITE_TOKEN: ${{ secrets.ELAH_APPS_SCRIPT_WRITE_TOKEN }}
       - name: Verificar sitio y D1 sin cargar fotografías ni modificar inventario
         run: node scripts/verify-cloudflare-production.mjs
+      - name: Conservar los doce vínculos de fotos respaldados sin sobrescribir registros
+        run: |
+          node scripts/import-cloudflare-records.mjs
+          npx wrangler d1 execute elah-catalog --remote --file work/cloudflare-records.sql
+        env:
+          CLOUDFLARE_ACCOUNT_ID: '15ec841931f6312fb82fdf863bb10d9a'
