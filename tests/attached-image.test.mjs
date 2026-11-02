@@ -38,3 +38,12 @@ test('accepts ChatGPT signed URL string without allowing arbitrary hosts',async(
   assert.equal(m.mock.callCount(),0);
  });
 });
+
+test('rejects local paths and bare ChatGPT file IDs with no network activity',async()=>{
+ await withFetch(async()=>{throw Error('must not fetch')},async(m)=>{
+  for(const input of ['/mnt/data/ELAH-JN054.webp','file_000000007e5c81f5b588b35aaa75d37a','sandbox:/mnt/data/ELAH-JN054.webp']){
+   await assert.rejects(readAttachedImage(input),/Enlace temporal del adjunto inválido/);
+  }
+  assert.equal(m.mock.callCount(),0);
+ });
+});
