@@ -19,7 +19,7 @@ export default {
   if(actions[url.pathname]){handler=oauth;query.action=actions[url.pathname];}
   const match=url.pathname.match(/^\/(oauth|admin)\/([a-z]+)$/);
   if(match){handler=match[1]==='oauth'?oauth:admin;query.action=match[2];}
-  if(!handler){if(url.pathname.startsWith('/api/'))return Response.json({error:'Ruta no encontrada'},{status:404});return env.ASSETS.fetch(request);}
+  if(!handler){if(url.pathname.startsWith('/api/'))return Response.json({error:'Ruta no encontrada'},{status:404});if(!env.ASSETS?.fetch)return Response.json({error:'Enlace ASSETS no configurado; despliega con wrangler.jsonc para incluir los archivos estáticos'},{status:503});return env.ASSETS.fetch(request);}
   // Host is configured by the operator, never inferred from untrusted request headers.
   if(url.origin!==ISSUER)return Response.json({error:'Origen de despliegue incorrecto'},{status:503});
   if(!env.DB)return Response.json({error:'D1 no configurado'},{status:503});
@@ -43,3 +43,4 @@ export default {
   ctx.waitUntil(env.DB.prepare('DELETE FROM records WHERE key IN (SELECT key FROM records WHERE expires_at < ? LIMIT 500)').bind(Math.floor(Date.now()/1000)).run());
  }
 };
+

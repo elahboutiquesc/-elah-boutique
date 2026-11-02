@@ -61,3 +61,21 @@ test('bulk photo endpoint returns public records in one call, without private OA
  const r=await worker.fetch(new Request('https://elah.example/api/image-registry?ref=ALL&records=1'),env);assert.equal(r.status,200);
  const payload=await r.json();assert.equal(payload.records.length,1);assert.equal(payload.records[0].url,url);assert.ok(!JSON.stringify(payload).includes('private'));
 });
+
+
+
+test('missing ASSETS produces a controlled response without touching D1 or OAuth',async()=>{
+ const r=await worker.fetch(new Request('https://elah.example/'),{});
+ assert.equal(r.status,503);assert.match((await r.json()).error,/ASSETS/);
+});
+
+
+test('Worker exposes explicit attachment and product creation tools while retaining D1 OAuth records',async()=>{
+ const db=database();await withStorage(db,()=>put('oauth/existing.json','{"preserved":true}'));
+ const r=await worker.fetch(new Request('https://elah.example/api/mcp',{method:'POST',headers:{Authorization:'Bearer synthetic-only','Content-Type':'application/json'},body:JSON.stringify({jsonrpc:'2.0',id:1,method:'tools/list'})}),{DB:db});
+ assert.equal(r.status,200);const {result}=await r.json();
+ const photo=result.tools.find(t=>t.name==='publicar_fotografia_en_elah');
+ assert.deepEqual(photo.inputSchema.required,['reference','file']);assert.equal(photo.inputSchema.oneOf,undefined);
+ assert.ok(result.tools.find(t=>t.name==='crear_producto_en_elah'));
+ const old=await withStorage(db,()=>get('oauth/existing.json'));assert.deepEqual(await new Response(old.stream).json(),{preserved:true});
+});
