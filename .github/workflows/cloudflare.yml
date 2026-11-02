@@ -29,6 +29,8 @@ jobs:
       - run: npm test
       - run: npm run cloudflare:check
       - run: npm run cloudflare:test-runtime
+      - name: Comprobar permisos de consulta sin mostrar datos
+        run: node scripts/diagnose-cloudflare-access.mjs
       - name: Publicar únicamente el Worker de ELAH
         run: npm run cloudflare:deploy -- --keep-vars
         env:
