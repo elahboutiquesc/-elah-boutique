@@ -42,8 +42,21 @@ test('accepts ChatGPT signed URL string without allowing arbitrary hosts',async(
 test('rejects local paths and bare ChatGPT file IDs with no network activity',async()=>{
  await withFetch(async()=>{throw Error('must not fetch')},async(m)=>{
   for(const input of ['/mnt/data/ELAH-JN054.webp','file_000000007e5c81f5b588b35aaa75d37a','sandbox:/mnt/data/ELAH-JN054.webp']){
-   await assert.rejects(readAttachedImage(input),/Enlace temporal del adjunto inválido/);
+   await assert.rejects(readAttachedImage(input),/ruta local o identificador/);
   }
+  assert.equal(m.mock.callCount(),0);
+ });
+});
+
+test('rejects HTTPS URL fragments, root-only URLs, malformed and backslash hosts',async()=>{
+ await withFetch(async()=>{throw Error('must not fetch')},async(m)=>{
+  for(const input of [
+   'https://files.oaiusercontent.com/',
+   'https://files.oaiusercontent.com/test#fragment',
+   'https://files.oaiusercontent.com\\@evil.test/test',
+   'https://files.oaiusercontent.com/test\\evil',
+   'https://files.oaiusercontent.com/test\n'
+  ]) await assert.rejects(readAttachedImage(input));
   assert.equal(m.mock.callCount(),0);
  });
 });
