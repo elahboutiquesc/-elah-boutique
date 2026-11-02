@@ -13,6 +13,8 @@ async function publish(args){return call('tools/call',{name:'publicar_fotografia
 test('tool discovery declares the complete ChatGPT file schema on the existing action',async()=>{
  const tools=(await call('tools/list')).tools;const tool=tools.find(t=>t.name==='publicar_fotografia_en_elah');assert.deepEqual(tool._meta['openai/fileParams'],['file']);
  assert.equal(tool.inputSchema.properties.file.type,'object');
+ assert.deepEqual(tool.inputSchema.required,['reference','file']);assert.equal(tool.inputSchema.oneOf,undefined);
+ const create=tools.find(t=>t.name==='crear_producto_en_elah');assert.ok(create);assert.ok(create.inputSchema.required.includes('stock'));assert.deepEqual(create.securitySchemes,tool.securitySchemes);
  assert.deepEqual(Object.keys(tool.inputSchema.properties.file.properties).sort(),['download_url','file_id','file_name','mime_type']);
  assert.deepEqual(tool.inputSchema.properties.file.required,['download_url','file_id']);assert.equal(tools.filter(t=>t.name==='publicar_fotografia_en_elah').length,1);
 });
