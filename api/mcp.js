@@ -5,7 +5,8 @@ import { requireExistingReference } from '../lib/existing-reference.js';
 // ELAH Boutique: remote MCP connector (Streamable HTTP, JSON-RPC 2.0).
 // Uses the existing ELAH_ADMIN_TOKEN and unsigned Cloudinary preset.
 import { timingSafeEqual } from 'node:crypto';
-import registryHandler from './image-registry.js';\nimport {tool as cloudflareTool,publishCloudflare} from './mcp-cloudflare.js';
+import registryHandler from './image-registry.js'; 
+import {tool as cloudflareTool,publishCloudflare} from './mcp-cloudflare.js';
 const tool = {
  name: 'publicar_fotografia_en_elah',
  title: 'Publicar fotografía en ELAH',
