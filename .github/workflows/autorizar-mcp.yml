@@ -20,7 +20,7 @@ jobs:
           ELAH_PUBLIC_ORIGIN: https://elah-boutique.elahboutique-sc.workers.dev
         run: |
           python3 - <<'PY'
-          import json, os, re, urllib.request, urllib.parse, urllib.error
+          import json, os, re, time, base64, urllib.request, urllib.parse, urllib.error
           request_id = os.environ['REQUEST_ID'].strip()
           if not re.fullmatch(r'[-_A-Za-z0-9]{43}', request_id):
               raise SystemExit('Identificador inválido')
@@ -33,12 +33,20 @@ jobs:
           req = urllib.request.Request(oidc_url, headers={'Authorization': 'Bearer ' + os.environ['ACTIONS_ID_TOKEN_REQUEST_TOKEN']})
           with urllib.request.urlopen(req, timeout=20) as response:
               token = json.load(response)['value']
+          claims = json.loads(base64.urlsafe_b64decode(token.split('.')[1] + '==='))
+          print(json.dumps({'audience_matches': claims.get('aud') == audience, 'repository_matches': claims.get('repository') == 'elahboutiquesc/-elah-boutique', 'repository_id_matches': claims.get('repository_id') == '1373614442', 'main_branch': claims.get('ref') == 'refs/heads/main', 'dispatch_event': claims.get('event_name') == 'workflow_dispatch', 'workflow_matches': claims.get('workflow_ref') == 'elahboutiquesc/-elah-boutique/.github/workflows/autorizar-mcp.yml@refs/heads/main', 'token_lifetime_seconds': claims.get('exp', 0) - claims.get('iat', 0)}))
           req = urllib.request.Request(audience, data=json.dumps({'request_id': request_id}).encode(), headers={'Content-Type':'application/json','Authorization':'Bearer ' + token})
           try:
               with urllib.request.urlopen(req, timeout=20) as response:
                   if response.status != 200:
                       raise SystemExit('No fue posible aprobar la solicitud')
           except urllib.error.HTTPError as error:
+              try:
+                  diagnostic = json.load(error).get('error_description', '')
+                  if re.fullmatch(r'approval_[a-z_]{1,40}', diagnostic):
+                      print('Comprobación rechazada: ' + diagnostic)
+              except Exception:
+                  pass
               messages = {
                   400: 'Solicitud caducada, inexistente o ya completada. Inicia una conexión nueva en ChatGPT y usa su nuevo request_id.',
                   403: 'GitHub no pudo acreditar la identidad autorizada para este workflow en main.',
