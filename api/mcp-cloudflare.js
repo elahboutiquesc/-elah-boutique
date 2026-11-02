@@ -17,7 +17,7 @@ export const config={api:{bodyParser:{sizeLimit:'6mb'}}};
 const json=(id,data,failed=false)=>({jsonrpc:'2.0',id,result:{...(failed?{isError:true}:{}),content:[{type:'text',text:JSON.stringify(data)}]}});
 function admin(req){const a=Buffer.from(String(req.headers.authorization||'').replace(/^Bearer\\s+/i,'')),b=Buffer.from(process.env.ELAH_ADMIN_TOKEN||'');return b.length>0&&a.length===b.length&&timingSafeEqual(a,b);}
 function magic(bytes){return bytes.length>=3&&bytes[0]===255&&bytes[1]===216&&bytes[2]===255?'image/jpeg':bytes.length>=8&&bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))?'image/png':bytes.length>=12&&bytes.toString('ascii',0,4)==='RIFF'&&bytes.toString('ascii',8,12)==='WEBP'?'image/webp':null;}
-async function run(args){
+export async function publishCloudflare(args){
  const reference=String(args?.reference||'').trim().toUpperCase();
  if(!referencePattern.test(reference))throw Error('Referencia inválida');
  const account=process.env.CLOUDFLARE_ACCOUNT_ID,secret=process.env.CLOUDFLARE_IMAGES_API_TOKEN,blobToken=process.env.BLOB_READ_WRITE_TOKEN;
@@ -65,6 +65,6 @@ export default async function handler(req,res){
  if(method==='initialize')return res.status(200).json({jsonrpc:'2.0',id,result:{protocolVersion:'2025-03-26',capabilities:{tools:{}},serverInfo:{name:'elah-cloudflare',version:'1.0.0'}}});
  if(method==='tools/list')return res.status(200).json({jsonrpc:'2.0',id,result:{tools:[tool]}});
  if(method!=='tools/call'||params?.name!==name)return res.status(200).json({jsonrpc:'2.0',id,error:{code:-32601,message:'Unknown method'}});
- try{return res.status(200).json(json(id,await run(params.arguments||{})));}
+ try{return res.status(200).json(json(id,await publishCloudflare(params.arguments||{})));}
  catch(e){return res.status(200).json(json(id,{status:'error',message:e.message},true));}
 }
