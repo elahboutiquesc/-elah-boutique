@@ -27,3 +27,14 @@ test('rejects disguised non-images and mismatched MIME',async()=>{
 test('redirection or network failures do not expose temporary URLs',async()=>{
  await withFetch(async()=>{throw Error(file.download_url)},async()=>assert.rejects(readAttachedImage(file),e=>e.message.includes('descargar')&&!e.message.includes('private-test')));
 });
+
+test('accepts ChatGPT signed URL string without allowing arbitrary hosts',async()=>{
+ await withFetch(async()=>new Response(png),async()=>{
+  const image=await readAttachedImage(file.download_url);
+  assert.equal(image.mimeType,'image/png');
+ });
+ await withFetch(async()=>{throw Error('must not fetch')},async(m)=>{
+  await assert.rejects(readAttachedImage('https://example.org/secret'));
+  assert.equal(m.mock.callCount(),0);
+ });
+});
