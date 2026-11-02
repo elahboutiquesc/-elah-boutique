@@ -35,7 +35,7 @@ jobs:
               token = json.load(response)['value']
           claims = json.loads(base64.urlsafe_b64decode(token.split('.')[1] + '==='))
           print(json.dumps({'audience_matches': claims.get('aud') == audience, 'repository_matches': claims.get('repository') == 'elahboutiquesc/-elah-boutique', 'repository_id_matches': claims.get('repository_id') == '1373614442', 'main_branch': claims.get('ref') == 'refs/heads/main', 'dispatch_event': claims.get('event_name') == 'workflow_dispatch', 'workflow_matches': claims.get('workflow_ref') == 'elahboutiquesc/-elah-boutique/.github/workflows/autorizar-mcp.yml@refs/heads/main', 'token_lifetime_seconds': claims.get('exp', 0) - claims.get('iat', 0)}))
-          req = urllib.request.Request(audience, data=json.dumps({'request_id': request_id}).encode(), headers={'Content-Type':'application/json','Authorization':'Bearer ' + token})
+          req = urllib.request.Request(audience, data=json.dumps({'request_id': request_id}).encode(), headers={'Content-Type':'application/json','Authorization':'Bearer ' + token,'User-Agent':'ELAH-GitHub-Approval/1.0'})
           try:
               with urllib.request.urlopen(req, timeout=20) as response:
                   if response.status != 200:
