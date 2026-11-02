@@ -6,13 +6,15 @@ await mock.module('@vercel/blob',{namedExports:{get:async()=>null,list:async()=>
 await mock.module('../api/inventory.js',{defaultExport:async(req,res)=>res.status(200).json({ok:true,productos:[{referencia:'ELAH-AC034',stock:1}]})});
 const {default:handler}=await import('../api/mcp.js');
 const png='iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=';
-const file='https://files.oaiusercontent.com/test?sig=private-test';
+const file={download_url:'https://files.oaiusercontent.com/test?sig=private-test',file_id:'file-test',mime_type:'image/png',file_name:'foto.png'};
 beforeEach(()=>{writes=[];events=[];offline=false;});
 async function call(method,args){const r={setHeader(){},status(){return this},json(data){this.data=data;return this}};await handler({method:'POST',headers:{authorization:'Bearer test-admin'},body:{jsonrpc:'2.0',id:1,method,params:args}},r);return r.data.result;}
 async function publish(args){return call('tools/call',{name:'publicar_fotografia_en_elah',arguments:{reference:'ELAH-AC034',file,...args}});}
 test('tool discovery declares the complete ChatGPT file schema on the existing action',async()=>{
  const tools=(await call('tools/list')).tools;const tool=tools.find(t=>t.name==='publicar_fotografia_en_elah');assert.deepEqual(tool._meta['openai/fileParams'],['file']);
- assert.equal(tool.inputSchema.properties.file.type,'string');assert.equal(tools.filter(t=>t.name==='publicar_fotografia_en_elah').length,1);
+ assert.equal(tool.inputSchema.properties.file.type,'object');
+ assert.deepEqual(Object.keys(tool.inputSchema.properties.file.properties).sort(),['download_url','file_id','file_name','mime_type']);
+ assert.deepEqual(tool.inputSchema.properties.file.required,['download_url','file_id']);assert.equal(tools.filter(t=>t.name==='publicar_fotografia_en_elah').length,1);
 });
 test('attached image downloads only after preflight and registers under the existing product',async()=>{
  const m=mock.method(globalThis,'fetch',async(url,options)=>{
