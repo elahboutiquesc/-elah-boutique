@@ -114,3 +114,7 @@ test('authorization page preserves same-origin POST provenance without leaking c
  const r=response();await endpoint({method:'GET',headers:{},query:{action:'authorize',client_id:client.client_id,redirect_uri:client.redirect_uris[0],response_type:'code',code_challenge_method:'S256',code_challenge:oauth.hash('a'.repeat(43)),resource:oauth.RESOURCE,scope:oauth.SCOPE,state:'browser-policy-test'}},r);
  assert.equal(r.code,200);assert.equal(r.headers['Referrer-Policy'],'same-origin');
 });
+
+test('Cloudflare advertises dynamic registration when remote CIMD resolution is unavailable',()=>{const m=oauth.authorizationMetadata();assert.equal(m.client_id_metadata_document_supported,false);assert.equal(m.registration_endpoint,oauth.ISSUER+'/oauth/register');});
+
+test('rejects redirect responses from ChatGPT client metadata',async()=>{const f=mock.method(globalThis,'fetch',async(url,opts)=>{assert.equal(opts.redirect,'manual');return new Response(null,{status:302,headers:{Location:'https://example.com'}})});try{await assert.rejects(oauth.resolveClient('https://chatgpt.com/oauth/client.json'),/invalid_client/);}finally{f.mock.restore();}});

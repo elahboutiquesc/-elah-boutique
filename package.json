@@ -10,6 +10,14 @@
     "node": "24.x"
   },
   "scripts": {
-    "test": "node --experimental-test-module-mocks --test tests/*.test.mjs"
+    "test": "node --experimental-test-module-mocks --test tests/*.test.mjs",
+    "cloudflare:build": "node scripts/build-cloudflare.mjs",
+    "cloudflare:check": "wrangler deploy --dry-run --outdir work/cloudflare-build",
+    "cloudflare:dev": "wrangler dev",
+    "cloudflare:deploy": "node scripts/check-cloudflare-config.mjs && wrangler deploy",
+    "cloudflare:test-runtime": "node scripts/verify-cloudflare-runtime.mjs"
+  },
+  "devDependencies": {
+    "wrangler": "^4.156.0"
   }
 }

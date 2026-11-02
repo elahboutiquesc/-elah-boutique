@@ -1,5 +1,7 @@
+import {ISSUER} from '../lib/oauth.js';
+import {storageAvailable} from '../lib/storage.js';
 import {timingSafeEqual} from 'node:crypto';
-import {get, put, list} from '@vercel/blob';
+import {get, put, list} from '../lib/storage.js';
 import {referencePattern, validImageUrl, validPublicId} from '../lib/image-record.js';
 import {requireExistingReference} from '../lib/existing-reference.js';
 
@@ -32,12 +34,12 @@ export default async function handler(req,res) {
   const supplied=String(req.headers.authorization||'').match(/^Bearer (\S+)$/i)?.[1];
   if(!sameSecret(supplied,process.env.ELAH_ADMIN_TOKEN))return res.status(401).json({ok:false,error:'Clave administrativa inválida'});
   const origin=req.headers.origin;
-  if(origin&&origin!=='https://elah-boutique.vercel.app')return res.status(403).json({ok:false,error:'Origen no permitido'});
+  if(origin&&origin!==ISSUER)return res.status(403).json({ok:false,error:'Origen no permitido'});
   const reference=String(req.query?.reference||'').trim().toUpperCase();
   if(!referencePattern.test(reference))return res.status(400).json({ok:false,error:'Referencia inválida'});
   if(Number(req.headers['content-length'])>LIMIT)return res.status(413).json({ok:false,error:'La imagen supera 3,5 MB'});
   const token=process.env.BLOB_READ_WRITE_TOKEN;
-  if(!token)return res.status(503).json({ok:false,error:'Vercel Blob no configurado'});
+  if(!storageAvailable())return res.status(503).json({ok:false,error:'Registro de fotografías no configurado'});
   try {
     await requireExistingReference(reference);
     const key='image-registry/'+reference+'.json';

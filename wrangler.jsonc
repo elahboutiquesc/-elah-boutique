@@ -1,0 +1,45 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "elah-boutique",
+  "main": "cloudflare/worker.js",
+  "compatibility_date": "2026-10-30",
+  "compatibility_flags": [
+    "nodejs_compat",
+    "nodejs_compat_populate_process_env"
+  ],
+  "workers_dev": true,
+  "preview_urls": false,
+  "assets": {
+    "directory": "./work/cloudflare-public",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*",
+      "/oauth/*",
+      "/admin/*",
+      "/.well-known/*"
+    ]
+  },
+  "build": {
+    "command": "node scripts/build-cloudflare.mjs"
+  },
+  "vars": {
+    "ELAH_PUBLIC_ORIGIN": "https://elah-boutique.elahboutique-sc.workers.dev"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "elah-catalog",
+      "database_id": "af2f9eae-f23d-4ea4-b384-3bd20d52b182",
+      "migrations_dir": "cloudflare/migrations"
+    }
+  ],
+  "triggers": {
+    "crons": [
+      "17 4 * * *"
+    ]
+  },
+  "observability": {
+    "enabled": false
+  },
+  "account_id": "15ec841931f6312fb82fdf863bb10d9a"
+}

@@ -18,7 +18,7 @@ test('tool discovery declares the complete ChatGPT file schema on the existing a
 test('attached image downloads only after preflight and registers under the existing product',async()=>{
  const m=mock.method(globalThis,'fetch',async(url,options)=>{
   if(String(url).startsWith('https://files.oaiusercontent.com/')){events.push('download');return new Response(Buffer.from(png,'base64'));}
-  events.push('upload');assert.equal(options.body.get('file'),'data:image/png;base64,'+png);assert.equal(options.body.get('upload_preset'),'elah_catalogo');assert.equal(options.body.get('public_id'),'ELAH-AC034');return {ok:true,json:async()=>({secure_url:'https://res.cloudinary.com/bl7tzrfk/image/upload/ELAH-AC034',public_id:'ELAH-AC034'})};
+  events.push('upload');assert.equal(options.body.get('file').type,'image/png');assert.deepEqual(Buffer.from(await options.body.get('file').arrayBuffer()),Buffer.from(png,'base64'));assert.equal(options.body.get('upload_preset'),'elah_catalogo');assert.equal(options.body.get('public_id'),'ELAH-AC034');return {ok:true,json:async()=>({secure_url:'https://res.cloudinary.com/bl7tzrfk/image/upload/ELAH-AC034',public_id:'ELAH-AC034'})};
  });
  try{const r=await publish();assert.equal(JSON.parse(r.content[0].text).status,'published');assert.deepEqual(events,['registry-check','download','upload']);assert.equal(writes.length,1);assert.equal(writes[0].key,'image-registry/ELAH-AC034.json');assert.ok(!JSON.stringify(writes).includes('private-test'));}finally{m.mock.restore();}
 });

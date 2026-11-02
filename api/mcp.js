@@ -1,3 +1,4 @@
+import {storageAvailable} from '../lib/storage.js';
 import {validImageUrl, validPublicId, referencePattern} from '../lib/image-record.js';
 import {validateAccess,challenge,SCOPE} from '../lib/oauth.js';
 import { readAttachedImage, validAttachment } from '../lib/attached-image.js';
@@ -76,13 +77,13 @@ if(!referencePattern.test(reference||'')||!validInput)return res.status(200).jso
 try{
 await requireExistingReference(reference);
 const token=process.env.BLOB_READ_WRITE_TOKEN;
-if(!token)throw Error('Falta conexión a Vercel Blob');
-const {put,list}=await import('@vercel/blob');
+if(!storageAvailable())throw Error('Falta conexión al registro de fotografías');
+const {put,list}=await import('../lib/storage.js');
 // A configured token alone does not prove the registry is reachable. This read
 // must succeed before Cloudinary receives any image data; it creates no blobs.
 await list({prefix:'image-registry/',limit:1,token});
 // Never upload a second asset for a reference already registered.
-const {get}=await import('@vercel/blob');
+const {get}=await import('../lib/storage.js');
 const existingRecord=await get('image-registry/'+reference+'.json',{access:'private',token,useCache:false});
 if(existingRecord?.statusCode===200&&existingRecord.stream){
  const old=await new Response(existingRecord.stream).json();
