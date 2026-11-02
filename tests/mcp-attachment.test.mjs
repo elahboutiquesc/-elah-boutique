@@ -31,3 +31,17 @@ test('unknown product, mixed inputs and registry outage cannot download or uploa
 test('expired attachment stops before Cloudinary and Blob writes',async()=>{
  const m=mock.method(globalThis,'fetch',async()=>new Response('',{status:403}));try{const r=await publish();assert.equal(r.isError,true);assert.equal(m.mock.callCount(),1);assert.equal(writes.length,0);assert.ok(!JSON.stringify(r).includes('private-test'));}finally{m.mock.restore();}
 });
+
+test('base64 action is listed separately and rejects mismatched file signatures',async()=>{
+ const tools=(await call('tools/list')).tools;
+ const action=tools.find(t=>t.name==='publicar_imagen_base64_en_elah');
+ assert.ok(action);
+ assert.deepEqual(action.inputSchema.required,['reference','image_base64','mime_type']);
+ const m=mock.method(globalThis,'fetch',async()=>{throw Error('unexpected network request')});
+ try {
+  const result=await call('tools/call',{name:action.name,arguments:{reference:'ELAH-AC034',image_base64:png,mime_type:'image/jpeg'}});
+  assert.equal(result.isError,true);
+  assert.equal(writes.length,0);
+  assert.equal(m.mock.callCount(),0);
+ } finally {m.mock.restore();}
+});
