@@ -27,3 +27,36 @@ test('rejects disguised non-images and mismatched MIME',async()=>{
 test('redirection or network failures do not expose temporary URLs',async()=>{
  await withFetch(async()=>{throw Error(file.download_url)},async()=>assert.rejects(readAttachedImage(file),e=>e.message.includes('descargar')&&!e.message.includes('private-test')));
 });
+
+test('accepts ChatGPT signed URL string without allowing arbitrary hosts',async()=>{
+ await withFetch(async()=>new Response(png),async()=>{
+  const image=await readAttachedImage(file.download_url);
+  assert.equal(image.mimeType,'image/png');
+ });
+ await withFetch(async()=>{throw Error('must not fetch')},async(m)=>{
+  await assert.rejects(readAttachedImage('https://example.org/secret'));
+  assert.equal(m.mock.callCount(),0);
+ });
+});
+
+test('rejects local paths and bare ChatGPT file IDs with no network activity',async()=>{
+ await withFetch(async()=>{throw Error('must not fetch')},async(m)=>{
+  for(const input of ['/mnt/data/ELAH-JN054.webp','file_000000007e5c81f5b588b35aaa75d37a','sandbox:/mnt/data/ELAH-JN054.webp']){
+   await assert.rejects(readAttachedImage(input),/ruta local o identificador/);
+  }
+  assert.equal(m.mock.callCount(),0);
+ });
+});
+
+test('rejects HTTPS URL fragments, root-only URLs, malformed and backslash hosts',async()=>{
+ await withFetch(async()=>{throw Error('must not fetch')},async(m)=>{
+  for(const input of [
+   'https://files.oaiusercontent.com/',
+   'https://files.oaiusercontent.com/test#fragment',
+   'https://files.oaiusercontent.com\\@evil.test/test',
+   'https://files.oaiusercontent.com/test\\evil',
+   'https://files.oaiusercontent.com/test\n'
+  ]) await assert.rejects(readAttachedImage(input));
+  assert.equal(m.mock.callCount(),0);
+ });
+});

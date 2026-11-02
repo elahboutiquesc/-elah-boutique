@@ -14,18 +14,7 @@ const tool = {
   type: 'object',
   properties: {
    reference: {type: 'string', description: 'Referencia existente exacta del producto, por ejemplo ELAH-AC034'},
-   file: {
-    type: 'object',
-    description: 'Una fotografía adjunta de la conversación.',
-    properties: {
-     download_url: {type: 'string'},
-     file_id: {type: 'string'},
-     mime_type: {type: 'string'},
-     file_name: {type: 'string'}
-    },
-    required: ['download_url', 'file_id'],
-    additionalProperties: false
-   },
+   file: {type:'string',description:'Adjunto ChatGPT proporcionado por fileParams: URL temporal HTTPS firmada; no introducir rutas locales ni IDs manualmente.'},
    image_base64: {type: 'string', description: 'Compatibilidad con clientes anteriores: imagen en base64, sin prefijo data:. Usar file para adjuntos de ChatGPT.'},
    mime_type: {type: 'string', enum: ['image/jpeg', 'image/png', 'image/webp']}
   },
