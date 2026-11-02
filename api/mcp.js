@@ -5,7 +5,7 @@ import { requireExistingReference } from '../lib/existing-reference.js';
 // ELAH Boutique: remote MCP connector (Streamable HTTP, JSON-RPC 2.0).
 // Uses the existing ELAH_ADMIN_TOKEN and unsigned Cloudinary preset.
 import { timingSafeEqual } from 'node:crypto';
-import registryHandler from './image-registry.js';
+import registryHandler from './image-registry.js';\nimport {tool as cloudflareTool,publishCloudflare} from './mcp-cloudflare.js';
 const tool = {
  name: 'publicar_fotografia_en_elah',
  title: 'Publicar fotografía en ELAH',
@@ -73,13 +73,17 @@ if(jsonrpc!=='2.0'||typeof method!=='string')return res.status(400).json(error(i
 if(method==='notifications/initialized')return res.status(202).end();
 if(method==='initialize')return res.status(200).json(reply(id,{protocolVersion:'2025-03-26',capabilities:{tools:{}},serverInfo:{name:'elah-boutique',version:'1.0.0'}}));
 if(method==='ping')return res.status(200).json(reply(id,{}));
-if(method==='tools/list')return res.status(200).json(reply(id,{tools:[tool,base64Tool,recoveryTool]}));
+if(method==='tools/list')return res.status(200).json(reply(id,{tools:[tool,base64Tool,recoveryTool,cloudflareTool]}));
 if(method!=='tools/call')return res.status(200).json(error(id,-32601,'Method not found'));
 if(params?.name===recoveryTool.name){
 let code=200,record;
 await registryHandler({...req,headers:{...req.headers,authorization:'Bearer '+process.env.ELAH_ADMIN_TOKEN},body:params.arguments||{}},{setHeader(){},status(n){code=n;return this},json(data){record=data;return this}});
 const result=code===200?{status:'registered',...record}:{status:'registration_pending',error:'No fue posible recuperar el registro; conserva el enlace y reintenta.'};
 return res.status(200).json(reply(id,{...(code!==200?{isError:true}:{}),content:[{type:'text',text:JSON.stringify(result)}]}));
+}
+if(params?.name===cloudflareTool.name){
+ try {const result=await publishCloudflare(params.arguments||{});return res.status(200).json(reply(id,{content:[{type:'text',text:JSON.stringify(result)}]}));}
+ catch(e){return res.status(200).json(reply(id,{isError:true,content:[{type:'text',text:'No se confirmó la publicación en Cloudflare: '+e.message}]}));}
 }
 if(params?.name!==tool.name&&params?.name!==base64Tool.name)return res.status(200).json(error(id,-32602,'Unknown tool'));
 const {reference,image_base64,mime_type,file}=params.arguments||{};
