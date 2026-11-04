@@ -37,19 +37,6 @@ const tool = {
  securitySchemes: [{type:'oauth2',scopes:[SCOPE]}],
  _meta: {'openai/fileParams': ['file'],securitySchemes:[{type:'oauth2',scopes:[SCOPE]}]}
 };
-const base64Tool={
- name:'publicar_imagen_base64_en_elah',
- title:'Publicar imagen base64 en ELAH',
- description:'Publica una imagen JPG, PNG o WebP en base64 en una referencia EXISTENTE. No cambia inventario, no sobrescribe fotografías. Usa únicamente bytes reales del archivo.',
- inputSchema:{type:'object',properties:{
-  reference:{type:'string',description:'Referencia existente exacta'},
-  image_base64:{type:'string',description:'Bytes reales de la imagen codificados en base64, sin prefijo data:'},
-  mime_type:{type:'string',enum:['image/jpeg','image/png','image/webp']}
- },required:['reference','image_base64','mime_type'],additionalProperties:false},
- annotations:{readOnlyHint:false,destructiveHint:true,openWorldHint:true},
- securitySchemes:[{type:'oauth2',scopes:[SCOPE]}],
- _meta:{securitySchemes:[{type:'oauth2',scopes:[SCOPE]}]}
-};
 const recoveryTool={name:'recuperar_registro_fotografia',description:'Registra de nuevo una URL ya subida a Cloudinary sin volver a cargar la fotografía ni modificar inventario.',inputSchema:{type:'object',properties:{reference:{type:'string'},url:{type:'string'},public_id:{type:'string'}},required:['reference','url','public_id'],additionalProperties:false}};
 recoveryTool.securitySchemes=[{type:'oauth2',scopes:[SCOPE]}];
 recoveryTool._meta={securitySchemes:recoveryTool.securitySchemes};
@@ -73,7 +60,7 @@ if(jsonrpc!=='2.0'||typeof method!=='string')return res.status(400).json(error(i
 if(method==='notifications/initialized')return res.status(202).end();
 if(method==='initialize')return res.status(200).json(reply(id,{protocolVersion:'2025-03-26',capabilities:{tools:{}},serverInfo:{name:'elah-boutique',version:'1.0.0'}}));
 if(method==='ping')return res.status(200).json(reply(id,{}));
-if(method==='tools/list')return res.status(200).json(reply(id,{tools:[tool,base64Tool,recoveryTool]}));
+if(method==='tools/list')return res.status(200).json(reply(id,{tools:[tool,recoveryTool]}));
 if(method!=='tools/call')return res.status(200).json(error(id,-32601,'Method not found'));
 if(params?.name===recoveryTool.name){
 let code=200,record;
@@ -81,10 +68,10 @@ await registryHandler({...req,headers:{...req.headers,authorization:'Bearer '+pr
 const result=code===200?{status:'registered',...record}:{status:'registration_pending',error:'No fue posible recuperar el registro; conserva el enlace y reintenta.'};
 return res.status(200).json(reply(id,{...(code!==200?{isError:true}:{}),content:[{type:'text',text:JSON.stringify(result)}]}));
 }
-if(params?.name!==tool.name&&params?.name!==base64Tool.name)return res.status(200).json(error(id,-32602,'Unknown tool'));
+if(params?.name!==tool.name)return res.status(200).json(error(id,-32602,'Unknown tool'));
 const {reference,image_base64,mime_type,file}=params.arguments||{};
 const attached=file!==undefined;
-const validInput=(params?.name===base64Tool.name && attached) ? false : attached ? validAttachment(file)&&image_base64===undefined&&mime_type===undefined : /^image\/(jpeg|png|webp)$/.test(mime_type||'')&&typeof image_base64==='string'&&image_base64.length<=4_700_000&&/^[A-Za-z0-9+/=]+$/.test(image_base64);
+const validInput=attached ? validAttachment(file)&&image_base64===undefined&&mime_type===undefined : /^image\/(jpeg|png|webp)$/.test(mime_type||'')&&typeof image_base64==='string'&&image_base64.length<=4_700_000&&/^[A-Za-z0-9+/=]+$/.test(image_base64);
 if(!referencePattern.test(reference||'')||!validInput)return res.status(200).json(reply(id,{isError:true,content:[{type:'text',text:'Adjunta una fotografía JPG, PNG o WebP y una referencia existente; máximo 3,5 MB. No combines adjunto y base64.'}]}));
 try{
 await requireExistingReference(reference);
@@ -105,17 +92,6 @@ if(existingRecord?.statusCode===200&&existingRecord.stream){
  if(existingRecord)throw Error('Registro existente inválido: requiere revisión administrativa');
 }
 const image=attached ? await readAttachedImage(file) : {base64:image_base64,mimeType:mime_type};
-if(!attached){
- const encoded=image.base64;
- const decoded=Buffer.from(encoded,'base64');
- if(decoded.length===0 || decoded.length>3_500_000 ||
-    decoded.toString('base64')!==encoded ||
-    !(image.mimeType==='image/jpeg' && decoded.length>=3 && decoded[0]===255 && decoded[1]===216 && decoded[2]===255 ||
-      image.mimeType==='image/png' && decoded.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10])) ||
-      image.mimeType==='image/webp' && decoded.length>=12 && decoded.toString('ascii',0,4)==='RIFF' && decoded.toString('ascii',8,12)==='WEBP')){
-  throw Error('Imagen base64 inválida, demasiado grande o con tipo incorrecto');
- }
-}
 const form=new FormData();form.append('file',new Blob([Buffer.from(image.base64,'base64')],{type:image.mimeType}),reference+'.'+(image.mimeType==='image/png'?'png':image.mimeType==='image/webp'?'webp':'jpg'));form.append('upload_preset','elah_catalogo');form.append('public_id',reference);form.append('context','reference='+reference);
 const cloud=await fetch('https://api.cloudinary.com/v1_1/bl7tzrfk/image/upload',{method:'POST',body:form,signal:AbortSignal.timeout(25000)});
 const uploaded=await cloud.json().catch(()=>null);
