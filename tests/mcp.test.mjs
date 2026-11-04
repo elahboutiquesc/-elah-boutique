@@ -18,7 +18,7 @@ async function invoke(reference='ELAH-AC034'){
   assert.equal(options.body.get('upload_preset'),'elah_catalogo');assert.equal(options.body.get('public_id'),reference);
   return {ok:true,json:async()=>({secure_url:'https://res.cloudinary.com/bl7tzrfk/image/upload/'+cloudId,public_id:cloudId})};
  });
- try{await handler({method:'POST',headers:{authorization:'Bearer test-admin'},body:{jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'publicar_fotografia_en_elah',arguments:{reference,image_base64:'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/l9sAAAAASUVORK5CYII=',mime_type:'image/png'}}}},res);return res.data.result;}finally{mocked.mock.restore();}
+ try{await handler({method:'POST',headers:{authorization:'Bearer test-admin'},body:{jsonrpc:'2.0',id:1,method:'tools/call',params:{name:'publicar_fotografia_en_elah',arguments:{reference,image_base64:'YWJj',mime_type:'image/jpeg'}}}},res);return res.data.result;}finally{mocked.mock.restore();}
 }
 test('missing Blob token prevents any network operation',async()=>{delete process.env.BLOB_READ_WRITE_TOKEN;assert.equal((await invoke()).isError,true);assert.deepEqual(calls,[]);});
 test('unavailable registry prevents Cloudinary upload',async()=>{registryFailure=true;assert.equal((await invoke()).isError,true);assert.deepEqual(calls,['registry-read']);});
