@@ -5,7 +5,7 @@ import vm from 'node:vm';
 await mock.module('@vercel/blob',{namedExports:{get:async()=>null}});
 const {default:handler}=await import('../api/product-image.js');
 test('photo metadata resolves the current Cloudinary image without caching a stale redirect',async()=>{
- const fetchMock=mock.method(globalThis,'fetch',async()=>({ok:true,headers:new Headers({etag:'new-photo'})}));
+ const fetchMock=mock.method(globalThis,'fetch',async(url,options)=>{assert.match(url,/\?elah_probe=\d+$/);assert.equal(options.cache,'no-store');return {ok:true,headers:new Headers({etag:'new-photo'})};});
  const res={code:200,headers:{},setHeader(k,v){this.headers[k]=v},status(n){this.code=n;return this},json(v){this.data=v},redirect(){throw Error('Metadata must not redirect');}};
  try{await handler({method:'GET',query:{ref:'ELAH-AC014',resolve:'1'}},res);}finally{fetchMock.mock.restore();}
  assert.equal(res.code,200);assert.equal(res.data.reference,'ELAH-AC014');assert.equal(res.data.revision,'new-photo');assert.equal(res.headers['Cache-Control'],'no-store');

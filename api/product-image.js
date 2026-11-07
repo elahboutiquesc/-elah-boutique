@@ -47,7 +47,7 @@ export default async function handler(req,res){
  }
  const cloud='https://res.cloudinary.com/bl7tzrfk/image/upload/'+encodeURIComponent(ref);
  try{
-   const r=await fetch(cloud,{method:'HEAD',signal:AbortSignal.timeout(5000)});
+   const r=await fetch(cloud+'?elah_probe='+Date.now(),{method:'HEAD',cache:'no-store',signal:AbortSignal.timeout(5000)});
    if(r.ok)return deliverImage(req,res,ref,cloud,r.headers?.get('etag')||r.headers?.get('last-modified')||'');
  }catch{}
  if(product?.img && !product.img.startsWith('/api/product-image')){
