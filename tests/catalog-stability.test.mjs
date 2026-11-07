@@ -3,6 +3,18 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 const source=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+test('live names replace stale blouse descriptions restored from a navigation snapshot',async()=>{
+ const names=[['ELAH-BL022','Chaleco blanco texturizado','Camisa de lino rosa'],['ELAH-BL092','Corset negro de tul con pedrería transparente','Top marrón strapless drapeado con hebilla dorada'],['ELAH-BL093','Corset negro estructurado con escote corazón y botones','Corset negro de tul con pedrería transparente'],['ELAH-BL094','Blusa corset marrón manga larga con escote cuadrado','Corset negro estructurado con escote corazón y botones']];
+ const products=names.map(([r,n],id)=>({id,r,n,s:'M',p:18,cop:59400,stock:1}));
+ const headings=products.map(p=>({textContent:p.n}));
+ const cards=products.map((p,i)=>({style:{},querySelector:selector=>selector==='.ref'?{textContent:p.r}:selector==='h3'?headings[i]:null}));
+ const ctx={activeCategory:"blusas",data:products,elahFavorites:[],document:{querySelectorAll:()=>cards},categoryConfig:()=>false,draw(){},money:()=>'',console,fetch:async url=>({ok:true,json:async()=>url.startsWith('/api/content-updates')?{ok:true,records:[]}:{ok:true,productos:names.map(([referencia,,descripcion])=>({referencia,descripcion,talla:'M',precioUSD:18,precioCOP:59400,stock:1}))}})};
+ vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('function reconcileCategoryCards(){'),source.indexOf('function openProfile()')),ctx);
+ await ctx.syncInventory();
+ names.forEach(([,oldName,correctName],i)=>{assert.equal(products[i].n,correctName);assert.equal(headings[i].textContent,correctName);assert.equal(ctx.data[i],products[i]);});
+ await ctx.syncInventory();
+ names.forEach(([, ,correctName],i)=>assert.equal(headings[i].textContent,correctName));
+});
 test('first and repeated inventory responses update existing cards without resetting navigation',async()=>{
  const ref={textContent:'ELAH-AC044'},name={textContent:'Old name'},price={textContent:'Old price'},size={textContent:'Talla M'},button={textContent:'🛒',disabled:false};
  const nodes={'.ref':ref,h3:name,'.price':price,'.info div[style*="font-size:10px"]':size,'.add':button};

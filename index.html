@@ -257,8 +257,8 @@ async function syncInventory(){
    if(!x){x={id:nextId++,r:ref};data.push(x);existing.set(ref,x);}
    x.inventoryVerified=true;
    x.category=String(v.categoria||'').trim();
-   // Never overwrite a known product's description, size or price with a
-   // mismatched inventory row. Stock remains sourced from the master sheet.
+   // Cached navigation snapshots are provisional: names always follow the live
+   // master reference. Keep the existing guard for size and non-blouse prices.
    const inventoryName=String(v.descripcion||'').trim();
    const catalogName=String(x.n||'').trim();
    const mismatched=Boolean(catalogName&&inventoryName&&catalogName.toLocaleLowerCase('es')!==inventoryName.toLocaleLowerCase('es'));
@@ -269,7 +269,8 @@ async function syncInventory(){
      x.cop=Number(v.precioCOP)||0;
      if(x.cop>0&&x.cop<1000)x.cop*=1000;
     }
-   }else console.warn('ELAH: inventario desalineado; metadatos conservados para',ref);
+   }
+   if(inventoryName)x.n=inventoryName;
    // Blouse prices always follow the master reference, independently of description wording.
    if(ref.startsWith('ELAH-BL')){
     const usd=Number(v.precioUSD),cop=Number(v.precioCOP);
