@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const source=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 test('live names replace stale blouse descriptions restored from a navigation snapshot',async()=>{
- const names=[['ELAH-BL022','Chaleco blanco texturizado','Camisa de lino rosa'],['ELAH-BL092','Corset negro de tul con pedrería transparente','Top marrón strapless drapeado con hebilla dorada'],['ELAH-BL093','Corset negro estructurado con escote corazón y botones','Corset negro de tul con pedrería transparente'],['ELAH-BL094','Blusa corset marrón manga larga con escote cuadrado','Corset negro estructurado con escote corazón y botones']];
+ const names=[['ELAH-BL022','Chaleco blanco texturizado','Camisa de lino rosa'],['ELAH-BL103','Nombre anterior','Crop top camel claro de tirantes anchos con lazo y abertura en espalda'],['ELAH-BL092','Corset negro de tul con pedrería transparente','Top marrón strapless drapeado con hebilla dorada'],['ELAH-BL093','Corset negro estructurado con escote corazón y botones','Corset negro de tul con pedrería transparente'],['ELAH-BL094','Blusa corset marrón manga larga con escote cuadrado','Corset negro estructurado con escote corazón y botones']];
  const products=names.map(([r,n],id)=>({id,r,n,s:'M',p:18,cop:59400,stock:1}));
  const headings=products.map(p=>({textContent:p.n}));
  const cards=products.map((p,i)=>({style:{},querySelector:selector=>selector==='.ref'?{textContent:p.r}:selector==='h3'?headings[i]:null}));
