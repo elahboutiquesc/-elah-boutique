@@ -20,12 +20,12 @@ test('first and repeated inventory responses update existing cards without reset
  const nodes={'.ref':ref,h3:name,'.price':price,'.info div[style*="font-size:10px"]':size,'.add':button};
  const card={style:{},querySelector:selector=>nodes[selector]||null};
  Object.defineProperty(card,'innerHTML',{set(){throw Error('Card replaced');}});
- const product={id:1,r:'ELAH-AC044',stock:2,p:2.42,cop:8000};
+ const product={id:1,r:'ELAH-AC044',stock:2,p:2.42,cop:8000,img:'https://example.com/loaded-photo.jpg'};
  let stock=0;
  const ctx={data:[product],elahFavorites:[],document:{querySelectorAll:()=>[card]},money:(p,cop)=>String(cop),draw(){},categoryConfig:()=>false,window:{scrollY:700},activeCategory:'accesorios',filterSearch:{value:'ELAH-AC044'},filterSize:{value:'Única'},showCategory(){throw Error('Filters reset');},renderProducts(){throw Error('Grid rebuilt');},console,fetch:async()=>({ok:true,json:async()=>({ok:true,productos:[{referencia:product.r,descripcion:'Zarcillos dorados',talla:'Única',stock,precioUSD:2.42,precioCOP:8000,estado:stock?'DISPONIBLE':'AGOTADO'}]})})};
  vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('function reconcileCategoryCards(){'),source.indexOf('function openProfile()')),ctx);
  await ctx.syncInventory();assert.equal(button.disabled,true);assert.equal(name.textContent,'Zarcillos dorados');assert.equal(price.textContent,'8000');assert.equal(size.textContent,'Talla Única');
- stock=1;await ctx.syncInventory();assert.equal(button.disabled,false);assert.equal(button.textContent,'🛒');assert.equal(ctx.window.scrollY,700);assert.equal(ctx.filterSearch.value,'ELAH-AC044');assert.equal(ctx.filterSize.value,'Única');assert.equal(ctx.data[0],product);
+ stock=1;await ctx.syncInventory();assert.equal(product.img,'https://example.com/loaded-photo.jpg');assert.equal(button.disabled,false);assert.equal(button.textContent,'🛒');assert.equal(ctx.window.scrollY,700);assert.equal(ctx.filterSearch.value,'ELAH-AC044');assert.equal(ctx.filterSize.value,'Única');assert.equal(ctx.data[0],product);
 });
 test('accessory subcategories use inventory classification, including products named Aros',()=>{
  const ctx={data:[{r:'ELAH-AC050',n:'Aros dorados con bolitas',category:'Accesorios - Zarcillos'},{r:'ELAH-AC051',n:'Modelo nuevo',category:'Accesorios - Zarcillos'},{r:'ELAH-AC020',n:'Lentes con cristales claros',category:'Accesorios - Lentes'},{r:'ELAH-AC052',n:'Aros dorados'}],activeCategory:'accesorios',activeAccessorySub:'zarcillos',categoryConfig:()=>({prefix:'ELAH-AC'}),filterSearch:{value:''},filterSize:{value:''},filterPrice:{value:''},filterColor:{value:''}};

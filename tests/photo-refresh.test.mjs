@@ -22,3 +22,12 @@ test('a visible card keeps its old image until the new photo loads, then swaps i
  assert.ok(src.includes('ELAH-AC014'));assert.ok(src.includes('elah_v=new'));assert.equal(card.querySelector('img.productPhoto'),image);
  ctx.refreshProductPhotos();assert.equal(requests,1);
 });
+
+test('a failed photo proxy falls back to the original catalogue URL before showing a placeholder',()=>{
+ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
+ const source=html.slice(html.indexOf('function recoverProductPhoto('),html.indexOf("document.addEventListener('error',recoverProductPhoto,true)"));
+ class Photo {constructor(){this.src='https://elah-boutique.vercel.app/api/product-image?ref=ELAH-JN001';this.dataset={};this.classList={contains:()=>true};}closest(){return {querySelector:()=>({textContent:'ELAH-JN001'})};}replaceWith(){throw Error('Original image was discarded');}}
+ const original='https://example.com/original.jpg',img=new Photo();
+ const ctx={HTMLImageElement:Photo,URL,location:{href:'https://elah-boutique.vercel.app/'},data:[{r:'ELAH-JN001'}],elahImageByRef:new Map(),elahOriginalImages:new Map([['ELAH-JN001',original]])};
+ vm.createContext(ctx);vm.runInContext(source,ctx);ctx.recoverProductPhoto({target:img});assert.equal(img.src,original);
+});
