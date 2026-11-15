@@ -25,11 +25,22 @@ test('saved coordinates restore independently of native browser scrolling and st
  vm.runInNewContext(source,ctx);assert.equal(ctx.history.scrollRestoration,'manual');
  ctx.window.elahRestoreViewport();assert.deepEqual(calls,[[0,1600]]);
  events.get('pageshow')();assert.equal(calls.length,3);
- events.get('touchstart')();ctx.window.elahInventoryPositionReady();assert.equal(calls.length,3);assert.equal(ctx.window.elahRestoringPosition,false);assert.equal(ctx.history.scrollRestoration,'auto');assert.equal(ctx.document.documentElement.style.scrollBehavior,'smooth');
+ events.get('touchstart')();ctx.window.elahInventoryPositionReady();assert.equal(calls.length,3);assert.equal(ctx.window.elahRestoringPosition,false);assert.equal(ctx.history.scrollRestoration,'manual');assert.equal(ctx.document.documentElement.style.scrollBehavior,'smooth');
 });
 test('view restoration preserves filters and hydrates new Sheets-only products without duplicate references',()=>{
  const view={category:'accesorios',subcategory:'zarcillos',search:'ELAH-AC047',size:'Única',price:'',color:'',horizontal:80,items:[{id:4,r:'ELAH-AC047',n:'Zarcillos dorados',s:'Única',p:2,cop:6600}]};
- const ctx={window:{elahReloadView:view},data:[{id:4,r:'ELAH-AC044'}],activeCategory:'favoritos',cur:'usd',categoryConfig:k=>k==='accesorios',currency(){},showAccessorySub(){},filterSearch:{},filterSize:{},filterPrice:{},filterColor:{},products:{},applyCategoryFilters(){}};
+ const ctx={window:{elahReloadView:view},data:[{id:4,r:'ELAH-AC044'}],activeCategory:'favoritos',cur:'usd',categoryConfig:k=>k==='accesorios',currency(){},showCategory(){},showAccessorySub(){},filterSearch:{},filterSize:{},filterPrice:{},filterColor:{},products:{},applyCategoryFilters(){}};
  vm.createContext(ctx);vm.runInContext(html.slice(html.indexOf('function restoreCatalogView(){'),html.indexOf("addEventListener('pagehide',rememberCatalogView)")),ctx);ctx.restoreCatalogView();
  assert.equal(ctx.activeCategory,'accesorios');assert.equal(ctx.filterSearch.value,'ELAH-AC047');assert.equal(ctx.filterSize.value,'Única');assert.equal(ctx.products.scrollLeft,80);assert.equal(ctx.data.length,2);assert.notEqual(ctx.data[0].id,ctx.data[1].id);assert.equal(ctx.window.elahReloadView,undefined);
+});
+
+test('reload follows the visible product when content above changes height and suppresses the stale hash',()=>{
+ const events=new Map(),calls=[],urls=[];
+ const saved=JSON.stringify({path:'/',x:0,y:1600,anchor:{ref:'ELAH-VE018',top:-60}});
+ const card={querySelector:()=>({textContent:'ELAH-VE018'}),getBoundingClientRect:()=>({top:250})};
+ const ctx={performance:{getEntriesByType:()=>[{type:'reload'}]},history:{scrollRestoration:'auto',state:null,replaceState:(...args)=>urls.push(args[2])},location:{pathname:'/',search:'',hash:'#tienda'},window:{scrollY:1600},sessionStorage:{getItem:key=>key==='elahCatalogScroll'?saved:null},document:{querySelectorAll:()=>[card],documentElement:{style:{}},body:{}},scrollTo:(x,y)=>calls.push([x,y]),addEventListener:(name,fn)=>events.set(name,fn),removeEventListener(){},requestAnimationFrame:fn=>fn(),setTimeout:()=>1,clearTimeout(){}};
+ vm.runInNewContext(source,ctx);ctx.window.elahRestoreViewport();
+ assert.deepEqual(calls,[[0,1910]]);
+ events.get('pageshow')();events.get('touchstart')();
+ assert.deepEqual(urls,['/']);assert.equal(ctx.history.scrollRestoration,'manual');
 });
