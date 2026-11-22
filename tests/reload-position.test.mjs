@@ -44,3 +44,10 @@ test('reload follows the visible product when content above changes height and s
  events.get('pageshow')();events.get('touchstart')();
  assert.deepEqual(urls,['/']);assert.equal(ctx.history.scrollRestoration,'manual');
 });
+
+test('stale saved image URLs cannot replace an existing catalog photograph on reload',()=>{
+ const view={category:'accesorios',items:[{r:'ELAH-AC047',n:'Zarcillos',p:2,cop:6600,img:'https://obsolete.example/missing.jpg'}]};
+ const ctx={window:{elahReloadView:view},data:[{id:4,r:'ELAH-AC047',img:'/images/catalog-archive/original.jpg'}],activeCategory:'favoritos',cur:'usd',categoryConfig:()=>true,currency(){},showCategory(){},showAccessorySub(){},filterSearch:{},filterSize:{},filterPrice:{},filterColor:{},products:{},applyCategoryFilters(){}};
+ vm.createContext(ctx);vm.runInContext(html.slice(html.indexOf('function restoreCatalogView(){'),html.indexOf("addEventListener('pagehide',rememberCatalogView)")),ctx);ctx.restoreCatalogView();
+ assert.equal(ctx.data[0].img,'/images/catalog-archive/original.jpg');
+});

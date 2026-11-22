@@ -359,7 +359,12 @@ const elahImageOverrides=(()=>{try{return JSON.parse(localStorage.getItem('elahC
 const elahImageByRef=new Map();
 const elahOriginalImages=new Map(data.filter(p=>p.img&&!p.img.startsWith('/api/')).map(p=>[p.r,p.img]));
 for(const item of elahImageOverrides){if(item&&/^ELAH-[A-Z]{2,3}[0-9]{3,}$/.test(item.referencia)&&/^https:\/\/res\.cloudinary\.com\/bl7tzrfk\/image\/upload\//.test(item.url)){if(!elahImageByRef.has(item.referencia))elahImageByRef.set(item.referencia,item.url)}}
-for(const item of data){if(elahImageByRef.has(item.r))item.img=elahImageByRef.get(item.r);else if(item.r==='ELAH-AC044')item.img='https://res.cloudinary.com/bl7tzrfk/image/upload/elah_catalogo/ELAH-AC044';}
+for(const item of data){
+ if(elahImageByRef.has(item.r)){
+  const candidate=elahImageByRef.get(item.r);elahImageByRef.delete(item.r);
+  const preload=new Image();preload.onload=()=>{elahImageByRef.set(item.r,candidate);item.img=candidate;elahResolveImages();};preload.src=candidate;
+ }else if(item.r==='ELAH-AC044')item.img='https://res.cloudinary.com/bl7tzrfk/image/upload/elah_catalogo/ELAH-AC044';
+}
 const elahOriginalImageFor=(ref)=>data.find(p=>p.r===ref)?.img||'';
 function elahResolveImages(root=document){root.querySelectorAll('article').forEach(card=>{const ref=card.querySelector('.ref')?.textContent?.trim();if(!ref)return;const image=card.querySelector('img.productPhoto');if(!image)return;const override=elahImageByRef.get(ref);if(override&&image.getAttribute('src')!==override)image.src=override;});}
 const elahObserver=new MutationObserver(()=>{if(elahObserver.scheduled)return;elahObserver.scheduled=true;requestAnimationFrame(()=>{elahObserver.scheduled=false;elahResolveImages()})});
@@ -376,7 +381,11 @@ async function elahLoadSharedImages(){
     const response=await fetch('/api/image-registry?ref='+encodeURIComponent(ref),{cache:'no-store'});
     if(!response.ok)return;const record=await response.json();
     if(record.reference!==ref||!/^https:\/\/res\.cloudinary\.com\/bl7tzrfk\/image\/upload\//.test(record.url))return;
-    elahImageByRef.set(ref,record.url);const product=data.find(p=>p.r===ref);if(product)product.img=record.url;elahResolveImages();
+    // A registry record can outlive its remote asset. Keep the current photograph
+    // until the replacement has actually loaded, including on slow connections.
+    const preload=new Image();
+    preload.onload=()=>{elahImageByRef.set(ref,record.url);const product=data.find(p=>p.r===ref);if(product)product.img=record.url;elahResolveImages();};
+    preload.src=record.url;
    }catch{}
   }));
  }catch{}
@@ -416,7 +425,7 @@ function restoreCatalogView(){
  for(const item of Array.isArray(view.items)?view.items:[]){
   if(!item||!/^ELAH-[A-Z]{2,5}\d{3,5}$/.test(item.r)||typeof item.n!=='string'||!Number.isFinite(item.p)||!Number.isFinite(item.cop))continue;
   const existing=data.find(p=>p.r===item.r);
-  if(existing)Object.assign(existing,item,{id:existing.id});
+  if(existing){const currentImage=existing.img;Object.assign(existing,item,{id:existing.id});if(currentImage)existing.img=currentImage;}
   else data.push({...item,id:nextId++});
  }
  activeCategory=category;if(categoryConfig(category))showCategory(category,false);currency(cur);
