@@ -11,3 +11,10 @@ test('Black Friday contains exactly the approved references and expires at Carac
  assert.equal(ctx.active(Date.parse('2026-11-29T23:59:59-04:00')),true);
  assert.equal(ctx.active(Date.parse('2026-11-30T00:00:00-04:00')),false);
 });
+test('promotional pieces only appear in Black Friday while the campaign is active',()=>{
+ const ctx={data:[{r:'ELAH-JN003',n:'Promoción',s:'M',p:10},{r:'ELAH-JN010',n:'Regular',s:'M',p:30}],activeCategory:'pantalones',activePantsSub:'pantalones',categoryConfig:()=>({prefix:'ELAH-'}),blackFridayActive:()=>true,blackFridayRefs:new Set(['ELAH-JN003']),filterSearch:{value:''},filterSize:{value:''},filterPrice:{value:''},filterColor:{value:''}};
+ vm.createContext(ctx);vm.runInContext(html.slice(html.indexOf('function filteredCategoryProducts(){'),html.indexOf('function applyCategoryFilters(){')),ctx);
+ assert.deepEqual(Array.from(ctx.filteredCategoryProducts(),p=>p.r),['ELAH-JN010']);
+ ctx.activeCategory='blackfriday';assert.deepEqual(Array.from(ctx.filteredCategoryProducts(),p=>p.r),['ELAH-JN003']);
+ ctx.activeCategory='pantalones';ctx.blackFridayActive=()=>false;assert.equal(ctx.filteredCategoryProducts().length,2);
+});
