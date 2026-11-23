@@ -6,8 +6,8 @@ const html=fs.readFileSync(new URL('../index.html',import.meta.url),'utf8');
 test('Black Friday contains exactly the approved references and expires at Caracas midnight',()=>{
  const ctx={Date};vm.createContext(ctx);
  vm.runInContext(html.slice(html.indexOf('const blackFridayEndsAt='),html.indexOf('function showBlackFriday()'))+';globalThis.refs=[...blackFridayRefs];globalThis.active=blackFridayActive;',ctx);
- assert.equal(ctx.refs.length,22);assert.equal(new Set(ctx.refs).size,22);
- assert.deepEqual(Array.from(ctx.refs),[3,4,5,6,7,8,9,14,20,21,22,23,32,33,35,41,42,43,44,25,26,58].map(n=>'ELAH-JN'+String(n).padStart(3,'0')));
+ assert.equal(ctx.refs.length,24);assert.equal(new Set(ctx.refs).size,24);
+ assert.deepEqual(Array.from(ctx.refs),[3,4,5,6,7,8,9,14,20,21,22,23,32,33,35,41,42,43,44,25,26,58].map(n=>'ELAH-JN'+String(n).padStart(3,'0')).concat(['ELAH-BL023','ELAH-BL086']));
  assert.equal(ctx.active(Date.parse('2026-11-29T23:59:59-04:00')),true);
  assert.equal(ctx.active(Date.parse('2026-11-30T00:00:00-04:00')),false);
 });
