@@ -34,3 +34,13 @@ test('Sheets-only references appear once; historical-only references retain meta
  assert.equal(products.length,2);assert.equal(products[0].inventoryVerified,false);assert.equal(products[0].stock,1);
  assert.equal(products[1].r,row.referencia);assert.equal(products[1].cop,39600);assert.equal(products[1].stock,2);assert.equal(products[1].s,'XS');
 });
+
+test('every category follows master prices even when the product description changes',async()=>{
+ const prefixes=['AC','BL','JN','VE','FA','CJ','RD','TB','CH','PJ','ES'];
+ const products=prefixes.map((prefix,i)=>({id:i+1,r:'ELAH-'+prefix+'001',n:'Previous description',p:99,cop:999999}));
+ const rows=products.map(p=>({referencia:p.r,descripcion:'Updated description',precioUSD:2,precioCOP:7200,stock:1,talla:'M'}));
+ const ctx={window:{scrollY:0},data:products,fetch:async()=>({ok:true,json:async()=>({ok:true,productos:rows})}),categoryConfig:()=>false,activeCategory:'all',refreshVisibleCatalog(){},draw(){},console};
+ vm.createContext(ctx);vm.runInContext(source.slice(source.indexOf('async function syncInventory(){'),source.indexOf('function openProfile()')),ctx);
+ await ctx.syncInventory();
+ for(const p of products){assert.equal(p.p,2,p.r);assert.equal(p.cop,7200,p.r);}
+});
